@@ -1,5 +1,66 @@
 # Цифровой деканат — запуск и проверка
 
+## Текущая версия: T06, проверенный Docker-запуск
+
+Приложение работает по **http://localhost:8000**. Публичный релиз отложен владельцем; сейчас используется локальный Docker. Команды из корня приложения:
+
+```powershell
+docker compose up --build -d --wait
+docker compose ps
+```
+
+У обоих сервисов ожидается healthy. Сначала ждём PostgreSQL, затем API после миграций и seed. Стек остаётся запущенным; `docker compose stop` остановит его без удаления данных. Для продолжения — `docker compose up -d --wait`. Не удаляйте том для обычного обновления. `.env` уже подготовлен; при первом запуске с чистого клона используйте `python scripts/init_env.py`.
+
+T06: единые токены `frontend/src/tokens.css` (цвета, шрифты, плотность, радиусы), мобильная навигация и читаемые поля, таблица очереди сотрудника на десктопе/карточки на телефоне, фокус при переходах и повторном входе, сохранение черновика, корректные доступные названия. Исправлен отказ форм на HTTP-origin без randomUUID и поведение края ленты. Визуальные и браузерные проверки теперь выполнены, прежние ограничения записей T01–T05 ниже являются историческими.
+
+Финальные результаты: **36 серверных тестов в Docker, 4 теста утилит, 15 браузерных проверок прошли**. Chromium — 360/390/768/1440, axe на 52 экранах, клавиатура/touch, сеть/истечение сессии, два полных пользовательских сценария. WebKit — 360, Firefox — 1440. Проверены длинные подписи и базовый текст 200%, PDF из UI, сохранность сессий и данных после остановки/запуска приложения и PostgreSQL. Отчёт: [docs/09-acceptance-report.md](docs/09-acceptance-report.md).
+
+### Повторить серверные проверки
+
+При первом запуске один раз создайте выделенную тестовую базу. Если она уже существует, повторять createdb не нужно. Для изменённого POSTGRES_USER подставьте своё имя.
+
+```powershell
+docker compose exec -T db createdb -U dekanat dekanat_test
+docker compose exec -T app python -m app.check
+docker compose exec -T app python -m alembic -c /app/backend/alembic.ini check
+docker compose exec -T app python -m pip check
+npm.cmd --prefix frontend test
+```
+
+Тесты очищают только базу `_test`, не основную. Остаётся одно предупреждение Starlette/AnyIO об устаревающем имени класса; проверки успешны.
+
+### Повторить браузерные проверки в изолированном Docker
+
+Нужен Docker и около 1 ГБ для первичной загрузки образа браузеров. Стенд не публикует порт наружу. Адрес `http://web:8000` доступен браузерам только внутри QA-сети. Проект, база и том отделены от основного приложения.
+
+```powershell
+New-Item -ItemType Directory -Force artifacts/browser | Out-Null
+docker compose -p dekanat-qa -f compose.qa.yaml up --build -d --wait db app
+docker compose -p dekanat-qa -f compose.qa.yaml exec -T app python -m app.qa --reset-test-data
+docker compose -p dekanat-qa -f compose.qa.yaml build browser
+docker compose -p dekanat-qa -f compose.qa.yaml run --rm --no-deps browser npx playwright test layout.spec.ts states.spec.ts workflow.spec.ts compatibility.spec.ts evidence.spec.ts
+```
+
+Reset разрешён скриптом только для БД с точным именем `dekanat_e2e_test`. Он удаляет данные именно этой репетиционной БД, поэтому не направляйте на неё ручную демонстрацию, которую требуется сохранить. Основной проект `dekanat-handoff` не затрагивается. Артефакты, PDF и JSON-отчёты попадут в `artifacts/browser`; секреты берутся из окружения, storageState и trace не сохраняются.
+
+Для проверки перезапуска запустите отдельный тест:
+
+```powershell
+docker compose -p dekanat-qa -f compose.qa.yaml run --rm --no-deps browser npx playwright test persistence.spec.ts
+```
+
+Когда он напечатает READY, в другом терминале выполните (том сохраняется):
+
+```powershell
+docker compose -p dekanat-qa -f compose.qa.yaml stop app db
+docker compose -p dekanat-qa -f compose.qa.yaml up -d --wait db app
+Copy-Item artifacts/browser/restart-ready.json artifacts/browser/restart-done.json
+```
+
+Тест удерживает cookie только в памяти и сравнивает данные после запуска контейнеров. Затем QA можно остановить: `docker compose -p dekanat-qa -f compose.qa.yaml stop`. Основной Docker-экземпляр продолжит работать.
+
+Не выполнены и не заявлены пройденными: ручной скринридер/физические телефоны, публичный HTTPS, проверка из России и внешние ссылки жюри. Публичные проверки отложены по решению владельца. Автоматическая эмуляция и axe не заменяют полную ручную оценку доступности.
+
 ## Обновление T05: главная и инструменты деканата
 
 Студент по умолчанию открывает `/today`: под меню находится ручная лента сообщений вуза, факультета и группы, ниже — ближайшее занятие и действия по заявкам. Есть `/announcements` и прямая карточка объявления. Уведомления объединяют личные события с признаком прочтения, адресные сообщения и напоминание о ближайшем зачёте. На телефоне предусмотрены свайп ленты, кнопки листания и нижняя навигация. Их браузерная приёмка пока не выполнена.
@@ -145,4 +206,4 @@ docker compose exec app python -m app.check
 
 Браузерный прогон, 360/390/768/1440 px, клавиатура и восстановление формы при сетевом сбое не проверены: обе доступные службы автоматизации браузера недоступны. Адаптивная вёрстка и сохранение черновиков реализованы, но сборка не заменяет визуальную приёмку.
 
-Следующий этап — T06: визуальная полировка и полная проверка адаптивности/доступности. T07: хостинг, HTTPS, внешняя проверка, отчёт и материалы жюри. Подробности: `docs/07-implementation-log.md` и `docs/08-api.md`.
+Дальнейший публичный этап T07 (хостинг, HTTPS, внешняя проверка и передача материалов жюри) отложен владельцем. Локальная приёмка T06 и Docker описаны в начале этого файла. Подробности: `docs/07-implementation-log.md`, `docs/08-api.md`, `docs/09-acceptance-report.md`.
