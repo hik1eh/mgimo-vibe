@@ -9,6 +9,7 @@ import { api, type User } from "./api";
 import type { Lesson } from "./study-types";
 import { campusDay, campusTime, dayLabel } from "./study-dates";
 import { ErrorBox, useResource } from "./ui";
+import { submissionKey } from "./ids";
 import { LinkedLesson } from "./campus";
 import {
   type Announcement,
@@ -59,6 +60,7 @@ export function StaffSchedulePage() {
           <label>
             Группа
             <select
+              aria-label="Группа"
               value={params.get("group_id") || ""}
               onChange={(e) => filter("group_id", e.target.value)}
             >
@@ -340,6 +342,7 @@ function LessonEditor({ initial, user }: { initial: Lesson; user: User }) {
               <label>
                 Причина изменения или отмены
                 <textarea
+                  aria-label="Причина изменения или отмены"
                   required
                   minLength={3}
                   maxLength={500}
@@ -435,7 +438,11 @@ export function StaffAnnouncementsPage() {
         <div className="results-toolbar">
           <label>
             Состояние
-            <select value={status} onChange={(e) => setStatus(e.target.value)}>
+            <select
+              aria-label="Состояние"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
               <option value="">Все состояния</option>
               {Object.entries(publicationLabel).map(([key, label]) => (
                 <option key={key} value={key}>
@@ -517,7 +524,7 @@ function announcementDraft(
     pinned: row?.pinned || false,
     expires_at: row?.expires_at ? localTime(row.expires_at) : "",
     version: row?.version || 1,
-    key: crypto.randomUUID(),
+    key: submissionKey(),
   };
 }
 export function StaffAnnouncementPage({
@@ -705,6 +712,7 @@ function AnnouncementEditor({
             <label>
               Текст
               <textarea
+                aria-label="Текст"
                 required
                 minLength={3}
                 maxLength={5000}
@@ -715,6 +723,7 @@ function AnnouncementEditor({
             <label>
               Кому
               <select
+                aria-label="Кому"
                 value={draft.audience}
                 onChange={(e) =>
                   setDraft((d) => ({
@@ -734,6 +743,7 @@ function AnnouncementEditor({
                 <label>
                   Группа
                   <select
+                    aria-label="Группа"
                     required
                     value={draft.group_id}
                     onChange={(e) =>
@@ -755,6 +765,7 @@ function AnnouncementEditor({
                 <label>
                   Связанное занятие
                   <select
+                    aria-label="Связанное занятие"
                     value={draft.lesson_id}
                     onChange={(e) => field("lesson_id", e.target.value)}
                   >
@@ -777,6 +788,7 @@ function AnnouncementEditor({
             <label>
               Состояние
               <select
+                aria-label="Состояние"
                 value={draft.status}
                 onChange={(e) => field("status", e.target.value)}
               >

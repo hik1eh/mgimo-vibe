@@ -3,28 +3,28 @@
   align-items: center;
   gap: 6px;
   min-height: 44px;
-  color: #e4edf8;
-  font-size: 11px;
+  color: var(--on-navy);
+  font-size: var(--text-xs);
   white-space: nowrap;
 }
 .unread-count {
-  font-size: 10px;
-  background: #e9a03f;
-  color: #172b43;
-  border-radius: 20px;
+  font-size: var(--text-xs);
+  background: var(--surface-warning);
+  color: var(--navy);
+  border-radius: var(--radius-pill);
   padding: 2px 6px;
 }
 .student-header .header-user {
-  gap: 12px;
+  gap: var(--space-3);
 }
 .home-title {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 20px;
+  gap: var(--space-5);
 }
 .home-title h1 {
-  font-size: 48px;
+  font-size: var(--text-hero);
 }
 .feed-region {
   margin: 30px 0 38px;
@@ -36,7 +36,7 @@
   gap: 10px;
 }
 .feed-actions a {
-  font-size: 12px;
+  font-size: var(--text-xs);
   margin-right: 10px;
 }
 .announcement-carousel {
@@ -50,9 +50,9 @@
 }
 .announcement-card {
   border: 1px solid var(--border);
-  border-radius: 10px;
-  background: white;
-  padding: 24px;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  padding: var(--space-6);
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -61,76 +61,76 @@
   scroll-snap-align: start;
 }
 .announcement-card.pinned {
-  background: #eaf0fc;
-  border-color: #b8c9ee;
+  background: var(--surface-accent);
+  border-color: var(--border-accent);
 }
 .announcement-meta {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
-  font-size: 10px;
-  color: #576d8b;
-  margin-bottom: 16px;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--muted);
+  margin-bottom: var(--space-4);
 }
 .announcement-card h2 {
-  font-size: 20px;
+  font-size: var(--text-xl);
   line-height: 1.3;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 .announcement-card h2 a {
   color: var(--navy);
 }
 .announcement-text {
-  font-size: 14px;
+  font-size: var(--text-sm);
   white-space: pre-wrap;
 }
 .announcement-card > small {
   display: block;
-  margin-top: 20px;
-  font-size: 10px;
+  margin-top: var(--space-5);
+  font-size: var(--text-xs);
 }
 .announcement-open {
   display: block;
-  font-size: 12px;
+  font-size: var(--text-xs);
   margin-top: 14px;
   min-height: 30px;
-  padding-top: 8px;
+  padding-top: var(--space-2);
 }
 .linked-lesson {
   margin: 18px 0;
-  padding: 16px;
-  background: #f2f5fb;
-  border: 1px solid #d7e0f0;
-  border-radius: 7px;
+  padding: var(--space-4);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
 }
 .linked-lesson .eyebrow {
-  font-size: 9px;
+  font-size: var(--text-xs);
   letter-spacing: 1px;
 }
 .linked-lesson h3 {
-  font-size: 15px;
-  margin: 8px 0;
+  font-size: var(--text-base);
+  margin: var(--space-2) 0;
 }
 .linked-lesson p {
-  font-size: 12px;
+  font-size: var(--text-xs);
   margin-bottom: 10px;
 }
 .linked-lesson a {
   display: inline-block;
-  font-size: 12px;
+  font-size: var(--text-xs);
   min-height: 32px;
   padding-top: 5px;
 }
 .home-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  gap: 28px;
+  gap: var(--space-7);
 }
 .home-study {
   min-width: 0;
 }
 .home-study .lesson-time {
-  font-size: 52px;
+  font-size: var(--text-clock);
   font-weight: 500;
   letter-spacing: -1px;
 }
@@ -143,26 +143,26 @@
 .attention-card {
   display: block;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-card);
   padding: 22px;
   margin-bottom: 18px;
   color: var(--navy);
 }
 .attention-card h3 {
-  margin: 8px 0;
-  font-size: 18px;
+  margin: var(--space-2) 0;
+  font-size: var(--text-lg);
 }
 .attention-card p {
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--muted);
   margin-bottom: 15px;
 }
 .attention-card > span:last-child {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--blue);
 }
 .next-credit-attention {
-  background: #fffaf0;
+  background: var(--surface-warning);
 }
 .announcements-grid {
   display: grid;
@@ -181,38 +181,38 @@
 .form-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .danger-button {
-  border: 1px solid #d7a69e;
-  color: #923c2b;
-  background: #fff2ef;
-  border-radius: 6px;
-  padding: 12px 16px;
+  border: 1px solid var(--border-danger);
+  color: var(--text-danger);
+  background: var(--surface-danger);
+  border-radius: var(--radius-control);
+  padding: var(--space-3) var(--space-4);
   min-height: 46px;
 }
 .edit-preview {
-  background: #edf2ff;
-  padding: 16px;
-  border-radius: 6px;
-  font-size: 13px;
+  background: var(--surface-accent);
+  padding: var(--space-4);
+  border-radius: var(--radius-control);
+  font-size: var(--text-sm);
   margin: 18px 0;
 }
 .edit-preview p {
-  margin: 8px 0 0;
+  margin: var(--space-2) 0 0;
 }
 .publish-prompt {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  background: #eaf5ed;
+  gap: var(--space-5);
+  background: var(--surface-success);
 }
 .publish-prompt h2 {
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 .publish-prompt p {
-  font-size: 13px;
+  font-size: var(--text-sm);
   margin: 0;
 }
 .history-title {
@@ -223,17 +223,17 @@
   padding: 18px 0;
 }
 .staff-change h3 {
-  font-size: 14px;
-  margin: 8px 0;
+  font-size: var(--text-sm);
+  margin: var(--space-2) 0;
 }
 .staff-change p {
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .checkbox-label {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 0 0 24px;
+  margin: 0 0 var(--space-6);
 }
 .checkbox-label input {
   width: 18px;
@@ -243,16 +243,16 @@
   accent-color: var(--blue);
 }
 .publication-draft {
-  background: #edf0f5;
-  color: #556175;
+  background: var(--surface-subtle);
+  color: var(--muted);
 }
 .publication-published {
-  background: #e2f4e8;
-  color: #266646;
+  background: var(--surface-success);
+  color: var(--text-success);
 }
 .publication-withdrawn {
-  background: #fff0cc;
-  color: #80520b;
+  background: var(--surface-warning);
+  color: var(--text-warning);
 }
 @media (max-width: 1000px) {
   .announcement-carousel > .announcement-card {
@@ -274,7 +274,7 @@
     display: none;
   }
   .student-header .header-user {
-    gap: 12px;
+    gap: var(--space-3);
   }
   .account-link {
     position: relative;
@@ -295,21 +295,21 @@
     z-index: 15;
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 4px;
-    background: white;
-    padding: 10px 8px calc(10px + env(safe-area-inset-bottom));
+    gap: var(--space-1);
+    background: var(--surface);
+    padding: 10px var(--space-2) calc(10px + env(safe-area-inset-bottom));
     border-top: 1px solid var(--border);
     width: 100%;
     box-shadow: 0 -5px 25px #172b4308;
   }
   .student-header nav.student-nav a {
-    color: #53677f;
-    padding: 12px 2px;
+    color: var(--muted);
+    padding: var(--space-3) 2px;
     min-height: 44px;
-    font-size: 11px;
+    font-size: var(--text-xs);
   }
   .student-header nav.student-nav a.active {
-    background: #eaf0fc;
+    background: var(--surface-accent);
     color: var(--blue);
   }
   .student-footer {
@@ -319,23 +319,23 @@
     display: block;
   }
   .home-title h1 {
-    font-size: 36px;
+    font-size: var(--text-5xl);
   }
   .home-title .primary {
     display: none;
   }
   .home-title p {
-    font-size: 13px;
+    font-size: var(--text-sm);
   }
   .feed-region {
     margin: 22px 0 30px;
   }
   .feed-region > .section-heading {
     align-items: flex-start;
-    gap: 8px;
+    gap: var(--space-2);
   }
   .feed-region h2 {
-    font-size: 17px;
+    font-size: var(--text-lg);
   }
   .feed-actions {
     gap: 6px;
@@ -344,7 +344,7 @@
     max-width: 150px;
   }
   .feed-actions a {
-    font-size: 11px;
+    font-size: var(--text-xs);
     width: 100%;
     text-align: right;
     margin: 0;
@@ -363,13 +363,13 @@
     gap: 25px;
   }
   .home-study .lesson-time {
-    font-size: 46px;
+    font-size: var(--text-hero);
   }
   .home-grid > .home-study .section-heading h2 {
-    font-size: 18px;
+    font-size: var(--text-lg);
   }
   .home-grid .section-heading > a {
-    font-size: 12px;
+    font-size: var(--text-xs);
   }
   .announcements-grid {
     grid-template-columns: 1fr;
@@ -391,9 +391,9 @@
     width: 100%;
   }
   .announcement-card h2 {
-    font-size: 19px;
+    font-size: var(--text-xl);
   }
   .announcement-text {
-    font-size: 13px;
+    font-size: var(--text-sm);
   }
 }

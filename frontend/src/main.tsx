@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useState, type FormEvent } from "react";
+import { StrictMode, useEffect, useRef, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import {
   BrowserRouter,
@@ -9,6 +9,7 @@ import {
   Navigate,
   useNavigate,
   useParams,
+  useLocation,
 } from "react-router-dom";
 import {
   api,
@@ -22,6 +23,7 @@ import {
   type Status,
   type Notice,
 } from "./api";
+import "./tokens.css";
 import "./style.css";
 import { ErrorBox, useResource } from "./ui";
 import { SchedulePage, LessonPage, ResultsPage } from "./study";
@@ -39,6 +41,17 @@ import {
   StaffAnnouncementPage,
 } from "./staff";
 import "./campus.css";
+import "./polish.css";
+import { submissionKey } from "./ids";
+
+function RouteFocus() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    document.getElementById("main")?.focus({ preventScroll: true });
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [pathname]);
+  return null;
+}
 
 function Badge({ status }: { status: Status }) {
   return <span className={`badge ${status}`}>{statusLabels[status]}</span>;
@@ -51,6 +64,11 @@ function Login({
   onLogin: (user: User) => void;
   expired?: boolean;
 }) {
+  const container = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (expired)
+      container.current?.querySelector<HTMLInputElement>("input")?.focus();
+  }, [expired]);
   const [login, setLogin] = useState(""),
     [password, setPassword] = useState(""),
     [error, setError] = useState(""),
@@ -69,7 +87,30 @@ function Login({
     }
   }
   return (
-    <div className={expired ? "session-overlay" : "login-page"}>
+    <div
+      ref={container}
+      className={expired ? "session-overlay" : "login-page"}
+      role={expired ? "dialog" : "main"}
+      aria-modal={expired ? true : undefined}
+      aria-labelledby={expired ? "login-title" : undefined}
+      onKeyDown={(e) => {
+        if (!expired || e.key !== "Tab") return;
+        const fields = Array.from(
+          container.current?.querySelectorAll<HTMLElement>(
+            "input,button:not(:disabled),a[href]",
+          ) || [],
+        );
+        const first = fields[0],
+          last = fields.at(-1);
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last?.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first?.focus();
+        }
+      }}
+    >
       <div className="login-intro">
         <div className="monogram">
           СК
@@ -95,7 +136,9 @@ function Login({
       </div>
       <section className="login-card">
         <span className="eyebrow">ЦИФРОВОЙ ДЕКАНАТ</span>
-        <h2>{expired ? "Войдите снова" : "Добро пожаловать"}</h2>
+        <h2 id="login-title">
+          {expired ? "Войдите снова" : "Добро пожаловать"}
+        </h2>
         <p className="muted">
           {expired
             ? "Сессия завершена. После входа вы сможете продолжить."
@@ -236,6 +279,7 @@ function RequestList({ user }: { user: User }) {
             <label>
               Статус
               <select
+                aria-label="Статус"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
               >
@@ -271,7 +315,43 @@ function RequestList({ user }: { user: User }) {
             </p>
           </div>
         )}
-        <div className="request-list">
+        {staff && !!data?.length && (
+          <table className="staff-queue-table">
+            <caption className="sr-only">
+              Очередь заявок вашего факультета
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Номер</th>
+                <th scope="col">Студент и группа</th>
+                <th scope="col">Тип</th>
+                <th scope="col">Подана</th>
+                <th scope="col">Срок</th>
+                <th scope="col">Статус</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((req) => (
+                <tr key={req.id}>
+                  <th scope="row">
+                    <Link to={`/requests/${req.id}`}>{req.number}</Link>
+                  </th>
+                  <td>
+                    {req.student.full_name}
+                    <small className="block">{req.student.group}</small>
+                  </td>
+                  <td>{req.type}</td>
+                  <td>{date(req.created_at)}</td>
+                  <td>{date(req.due_at)}</td>
+                  <td>
+                    <Badge status={req.status} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <div className={`request-list ${staff ? "staff-queue-cards" : ""}`}>
           {data?.map((req) => (
             <Link
               key={req.id}
@@ -311,7 +391,7 @@ function NewRequest({ user }: { user: User }) {
     } catch {
       /* Fresh draft */
     }
-    return { purpose: "", key: crypto.randomUUID() };
+    return { purpose: "", key: submissionKey() };
   });
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
@@ -361,6 +441,7 @@ function NewRequest({ user }: { user: User }) {
             <label>
               Место предъявления
               <textarea
+                aria-label="Место предъявления"
                 required
                 minLength={3}
                 maxLength={500}
@@ -606,6 +687,7 @@ function RequestDetail({ user }: { user: User }) {
                     <label>
                       {staff ? "Вопрос студенту" : "Ваш ответ"}
                       <textarea
+                        aria-label={staff ? "Вопрос студенту" : "Ваш ответ"}
                         required
                         maxLength={2000}
                         value={text}
@@ -769,6 +851,7 @@ function Cabinet({ user, onLogout }: { user: User; onLogout: () => void }) {
         </div>
       </header>
       <main id="main" tabIndex={-1}>
+        <RouteFocus />
         <ErrorBox error={error} />
         <Routes>
           {!staff && (
@@ -832,7 +915,7 @@ function Cabinet({ user, onLogout }: { user: User; onLogout: () => void }) {
       </main>
       <footer className={staff ? "" : "student-footer"}>
         <span>Университет Северного кампуса</span>
-        <span>Демонстрационный сервис · Итерация 03</span>
+        <span>Демонстрационный сервис · Итерация 04</span>
       </footer>
     </>
   );
@@ -884,18 +967,21 @@ function App() {
   const loggedIn = (u: User) => {
     setUser(u);
     setExpired(false);
+    window.dispatchEvent(new Event("session-restored"));
   };
   return user ? (
     <>
-      <Cabinet
-        key={user.id}
-        user={user}
-        onLogout={() => {
-          setUser(null);
-          setExpired(false);
-          sessionStorage.clear();
-        }}
-      />
+      <div inert={expired}>
+        <Cabinet
+          key={user.id}
+          user={user}
+          onLogout={() => {
+            setUser(null);
+            setExpired(false);
+            sessionStorage.clear();
+          }}
+        />
+      </div>
       {expired && <Login expired onLogin={loggedIn} />}
     </>
   ) : (

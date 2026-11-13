@@ -10,5 +10,5 @@ target = os.environ.get('TEST_DATABASE_URL') or url.set(database=f'{url.database
 if not (make_url(target).database or '').endswith('_test'):
     raise SystemExit('Тестовая база должна оканчиваться на _test.')
 env = dict(os.environ, TEST_DATABASE_URL=target)
-result = subprocess.run([sys.executable, '-m', 'pytest', str(ROOT / 'backend/tests'), '-q'], env=env)
+result = subprocess.run([sys.executable, '-m', 'pytest', str(ROOT / 'backend/tests'), '-q', '-p', 'no:cacheprovider'], env=env)
 raise SystemExit(result.returncode)

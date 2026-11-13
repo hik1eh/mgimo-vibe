@@ -107,7 +107,13 @@ function Changes({ lesson }: { lesson: Lesson }) {
     </div>
   );
 }
-export function LessonCard({ lesson, query }: { lesson: Lesson; query: string }) {
+export function LessonCard({
+  lesson,
+  query,
+}: {
+  lesson: Lesson;
+  query: string;
+}) {
   return (
     <article
       className={`lesson-card ${lesson.status === "cancelled" ? "cancelled-card" : ""}`}
@@ -449,6 +455,7 @@ export function ResultsPage() {
             <label>
               Семестр
               <select
+                aria-label="Семестр"
                 value={data.semester ?? ""}
                 disabled={!data.semesters.length}
                 onChange={(e) => setParams({ semester: e.target.value })}

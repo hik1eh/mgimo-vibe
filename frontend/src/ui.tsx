@@ -18,6 +18,10 @@ export function useResource<T>(path: string, poll = false) {
   const [tick, setTick] = useState(0);
   const reload = useCallback(() => setTick((t) => t + 1), []);
   useEffect(() => {
+    window.addEventListener("session-restored", reload);
+    return () => window.removeEventListener("session-restored", reload);
+  }, [reload]);
+  useEffect(() => {
     let active = true;
     api<T>(path)
       .then((data) => {

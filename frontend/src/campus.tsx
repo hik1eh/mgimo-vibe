@@ -130,8 +130,8 @@ function Feed({ rows }: { rows: Announcement[] }) {
     if (!el) return;
     const update = () =>
       setEdges({
-        prev: el.scrollLeft > 2,
-        next: el.scrollLeft + el.clientWidth < el.scrollWidth - 2,
+        prev: el.scrollLeft > 8,
+        next: el.scrollLeft + el.clientWidth < el.scrollWidth - 8,
       });
     update();
     el.addEventListener("scroll", update, { passive: true });
@@ -183,6 +183,7 @@ function Feed({ rows }: { rows: Announcement[] }) {
       {rows.length ? (
         <div
           className="announcement-carousel"
+          role="group"
           ref={viewport}
           tabIndex={0}
           aria-label="Лента, используйте стрелки или прокрутку"

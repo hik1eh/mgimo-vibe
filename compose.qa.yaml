@@ -1,0 +1,49 @@
+# Disposable QA project. Start with: docker compose -p dekanat-qa -f compose.qa.yaml ...
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: dekanat_e2e_test
+      POSTGRES_USER: ${POSTGRES_USER:?Prepare .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Prepare .env}
+    volumes:
+      - qa_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d dekanat_e2e_test"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  app:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/dekanat_e2e_test
+      APP_ORIGIN: http://web:8000
+      COOKIE_SECURE: "false"
+    networks:
+      default:
+        aliases: [web]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=2)"]
+      start_period: 20s
+      interval: 3s
+      timeout: 3s
+      retries: 15
+    depends_on:
+      db:
+        condition: service_healthy
+  browser:
+    build: ./e2e
+    env_file: .env
+    environment:
+      BASE_URL: http://web:8000
+      ARTIFACT_DIR: /artifacts
+    volumes:
+      - ./artifacts/browser:/artifacts
+    init: true
+    ipc: host
+    depends_on:
+      app:
+        condition: service_healthy
+volumes:
+  qa_data:

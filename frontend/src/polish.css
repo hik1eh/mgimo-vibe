@@ -1,0 +1,215 @@
+html {
+  font-size: 16px;
+  scroll-padding-block: 24px 96px;
+}
+.staff-queue-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  table-layout: fixed;
+}
+.staff-queue-table th,
+.staff-queue-table td {
+  padding: var(--space-4) var(--space-3);
+  font-size: var(--text-sm);
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+.staff-queue-table thead th {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+.staff-queue-table th:first-child {
+  width: 13%;
+  padding-left: 0;
+}
+.staff-queue-table td:nth-child(2) {
+  width: 20%;
+}
+.staff-queue-table th a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.staff-queue-cards {
+  display: none;
+}
+@media (max-width: 1000px) {
+  .staff-queue-table {
+    display: none;
+  }
+  .staff-queue-cards {
+    display: block;
+  }
+}
+body {
+  min-width: 320px;
+}
+button,
+input,
+textarea,
+select {
+  font-size: var(--text-base);
+}
+button,
+a,
+h1,
+h2,
+h3 {
+  overflow-wrap: anywhere;
+}
+button,
+.primary,
+.secondary,
+.account-link,
+.logout {
+  min-height: 44px;
+}
+input,
+textarea,
+select {
+  max-width: 100%;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+.primary,
+.secondary,
+.logout,
+.panel {
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+header {
+  grid-template-columns: minmax(180px, 1fr) minmax(0, auto) minmax(220px, 1fr);
+}
+.header-user,
+nav {
+  min-width: 0;
+}
+.header-user {
+  flex-wrap: wrap;
+}
+.account-link {
+  max-width: 100%;
+  white-space: normal;
+}
+.panel,
+.announcement-card,
+.lesson-card {
+  box-shadow: var(--shadow-soft);
+}
+.home-study .lesson-card {
+  background: linear-gradient(140deg, var(--surface-accent), var(--surface));
+}
+.home-study .lesson-time {
+  color: var(--blue);
+}
+.home-study > .empty {
+  background: var(--surface-accent);
+}
+.badge {
+  white-space: normal;
+  max-width: 100%;
+}
+.row-end {
+  max-width: 100%;
+}
+.request-row > div {
+  min-width: 0;
+}
+.section-heading {
+  flex-wrap: wrap;
+}
+.announcement-carousel {
+  border-radius: var(--radius-card);
+}
+.announcement-carousel:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+.skip-link {
+  position: fixed;
+  font-weight: 600;
+}
+.session-overlay {
+  backdrop-filter: blur(4px);
+}
+.session-overlay .login-card {
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+}
+.loading-message {
+  color: var(--muted);
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+.loading-message::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  background: var(--blue);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+@media (max-width: 600px) {
+  header {
+    min-width: 0;
+  }
+  .student-header .header-user {
+    gap: var(--space-2);
+  }
+  .student-header .account-link {
+    min-width: 32px;
+  }
+  .student-header nav.student-nav {
+    padding-top: var(--space-2);
+  }
+  .student-header nav.student-nav a {
+    font-size: var(--text-xs);
+  }
+  .home-title .primary {
+    display: inline-flex;
+    margin-top: var(--space-5);
+    width: 100%;
+  }
+  .feed-actions .square {
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .feed-actions {
+    max-width: 145px;
+  }
+  .feed-region .section-heading h2 {
+    max-width: 135px;
+  }
+  .lesson-card-top {
+    flex-wrap: wrap;
+  }
+  .session-overlay {
+    padding: var(--space-4);
+  }
+  .session-overlay .login-card {
+    max-height: calc(100dvh - 32px);
+  }
+  .date-navigation input {
+    min-width: 0;
+    width: 148px;
+  }
+  .profile > div {
+    min-width: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}
