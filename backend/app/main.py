@@ -16,6 +16,7 @@ from .security import (COOKIE, passwords, DUMMY_HASH, digest, current_session, c
                        student, staff, csrf, require_origin, new_session)
 from .pdf import certificate
 from .study import router as study_router
+from .campus import router as campus_router
 
 app = FastAPI(title='Цифровой деканат — конкурсный прототип', version='0.1.0')
 api = APIRouter(prefix='/api/v1')
@@ -261,6 +262,7 @@ def read_notification(notification_id: int, user=Depends(student), db: Session =
 
 app.include_router(api)
 app.include_router(study_router)
+app.include_router(campus_router)
 dist = ROOT / 'frontend' / 'dist'
 if (dist / 'assets').exists():
     app.mount('/assets', StaticFiles(directory=dist / 'assets'), name='assets')

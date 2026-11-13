@@ -1,13 +1,18 @@
 """Keep a browser-like cookie jar in memory while the operator restarts the API."""
 import os
+import argparse
 from pathlib import Path
 import httpx
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parents[1] / '.env')
-with httpx.Client(base_url='http://127.0.0.1:8000/api/v1', timeout=10) as client:
+parser = argparse.ArgumentParser()
+parser.add_argument('--base', default='http://127.0.0.1:8000')
+parser.add_argument('--origin', default=os.environ['APP_ORIGIN'])
+args = parser.parse_args()
+with httpx.Client(base_url=args.base + '/api/v1', timeout=10) as client:
     token = client.get('/auth/csrf').json()['csrf_token']
-    client.headers.update({'Origin': os.environ['APP_ORIGIN'], 'X-CSRF-Token': token})
+    client.headers.update({'Origin': args.origin, 'X-CSRF-Token': token})
     login = client.post('/auth/login', json={'login': 'student.a', 'password': os.environ['DEMO_STUDENT_A_PASSWORD']})
     assert login.status_code == 200
     client.headers['X-CSRF-Token'] = login.json()['csrf_token']
@@ -18,6 +23,7 @@ with httpx.Client(base_url='http://127.0.0.1:8000/api/v1', timeout=10) as client
     context = client.get('/study-context').json()
     schedule = client.get('/schedule').json()
     academic = client.get('/academic-results').json()
+    announcements = client.get('/announcements').json()
     print('READY: restart the API and PostgreSQL, then press Enter.', flush=True)
     input()
     assert client.get('/me').json() == profile
@@ -26,9 +32,10 @@ with httpx.Client(base_url='http://127.0.0.1:8000/api/v1', timeout=10) as client
     assert client.get('/study-context').json() == context
     assert client.get('/schedule').json() == schedule
     assert client.get('/academic-results').json() == academic
+    assert client.get('/announcements').json() == announcements
     for req in requests:
         if req['status'] == 'ready':
             doc = client.get(f"/requests/{req['id']}/document")
             assert doc.status_code == 200 and doc.content.startswith(b'%PDF')
     assert client.post('/auth/logout').status_code == 204
-    print('PASS: session, profile, requests, notifications, PDF, schedule and results survived restart.', flush=True)
+    print('PASS: session, profile, requests, notifications, PDF, schedule, results and announcements survived restart.', flush=True)

@@ -25,7 +25,7 @@ def study_context(user=Depends(student), db: Session = Depends(get_db)):
 
 
 def lesson_data(lesson):
-    return dict(id=lesson.id, group=lesson.group.name, subject=lesson.subject,
+    return dict(id=lesson.id, group_id=lesson.group_id, group=lesson.group.name, subject=lesson.subject,
         teacher=lesson.teacher, kind=lesson.kind, starts_at=lesson.starts_at,
         ends_at=lesson.ends_at, building=lesson.building, room=lesson.room,
         status=lesson.status, version=lesson.version,

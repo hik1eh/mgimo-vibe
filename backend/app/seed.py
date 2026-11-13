@@ -5,6 +5,7 @@ from .db import SessionLocal
 from .models import Faculty, Group, User
 from .security import passwords
 from .study_seed import seed_study
+from .campus_seed import seed_announcements
 
 
 def seed(db, credentials, demo_date=None):
@@ -37,6 +38,8 @@ def seed(db, credentials, demo_date=None):
                 course=course, password_hash=passwords.hash(password)))
     db.flush()
     seed_study(db, demo_date)
+    db.flush()
+    seed_announcements(db)
     db.commit()
 
 

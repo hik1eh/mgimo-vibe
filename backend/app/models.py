@@ -110,6 +110,7 @@ class StudyScenario(Base):
 class Lesson(Base):
     __tablename__ = 'lessons'
     __table_args__ = (
+        UniqueConstraint('id', 'group_id', name='lesson_id_group'),
         CheckConstraint('ends_at > starts_at', name='lesson_time_order'),
         CheckConstraint("status IN ('scheduled','moved','cancelled')", name='lesson_status'),
     )
@@ -159,3 +160,36 @@ class AcademicResult(Base):
     control_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     grade: Mapped[int | None] = mapped_column(Integer, nullable=True)
     credit_passed: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+
+
+class Announcement(Base):
+    __tablename__ = 'announcements'
+    __table_args__ = (
+        UniqueConstraint('author_id', 'idempotency_key', name='announcement_submission'),
+        ForeignKeyConstraint(['group_id', 'faculty_id'], ['groups.id', 'groups.faculty_id']),
+        ForeignKeyConstraint(['lesson_id', 'group_id'], ['lessons.id', 'lessons.group_id']),
+        CheckConstraint("(audience='university' AND faculty_id IS NULL AND group_id IS NULL) OR (audience='faculty' AND faculty_id IS NOT NULL AND group_id IS NULL) OR (audience='group' AND faculty_id IS NOT NULL AND group_id IS NOT NULL)", name='announcement_audience'),
+        CheckConstraint("lesson_id IS NULL OR (audience='group' AND group_id IS NOT NULL)", name='announcement_lesson_audience'),
+        CheckConstraint("status IN ('draft','published','withdrawn')", name='announcement_status'),
+        CheckConstraint("status<>'published' OR published_at IS NOT NULL", name='announcement_publication'),
+        CheckConstraint('expires_at IS NULL OR published_at IS NULL OR expires_at > published_at', name='announcement_expiry'),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    demo_key: Mapped[str | None] = mapped_column(String(80), unique=True, nullable=True)
+    author_id: Mapped[int | None] = mapped_column(ForeignKey('users.id'), nullable=True)
+    idempotency_key: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    create_digest: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    title: Mapped[str] = mapped_column(String(160))
+    text: Mapped[str] = mapped_column(Text)
+    source: Mapped[str] = mapped_column(String(180))
+    audience: Mapped[str] = mapped_column(String(20))
+    faculty_id: Mapped[int | None] = mapped_column(ForeignKey('faculties.id'), nullable=True, index=True)
+    group_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    lesson_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default='draft')
+    pinned: Mapped[bool] = mapped_column(Boolean, default=False)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    __mapper_args__ = {'version_id_col': version}
+    lesson: Mapped[Lesson | None] = relationship(foreign_keys=[lesson_id, group_id])
