@@ -23,44 +23,11 @@ import {
   type Notice,
 } from "./api";
 import "./style.css";
+import { ErrorBox, useResource } from "./ui";
+import { SchedulePage, LessonPage, ResultsPage } from "./study";
 
-function ErrorBox({ error }: { error: string }) {
-  return error ? (
-    <div className="error" role="alert">
-      {error}
-    </div>
-  ) : null;
-}
 function Badge({ status }: { status: Status }) {
   return <span className={`badge ${status}`}>{statusLabels[status]}</span>;
-}
-function useResource<T>(path: string, poll = false) {
-  const [data, setData] = useState<T | null>(null),
-    [error, setError] = useState(""),
-    [tick, setTick] = useState(0);
-  useEffect(() => {
-    let active = true;
-    api<T>(path)
-      .then((d) => {
-        if (active) {
-          setData(d);
-          setError("");
-        }
-      })
-      .catch((e) => {
-        if (active) setError(e.message);
-      });
-    return () => {
-      active = false;
-    };
-  }, [path, tick]);
-  useEffect(() => {
-    if (poll) {
-      const timer = setInterval(() => setTick((t) => t + 1), 15000);
-      return () => clearInterval(timer);
-    }
-  }, [poll]);
-  return { data, error, reload: () => setTick((t) => t + 1) };
 }
 
 function Login({
@@ -751,6 +718,12 @@ function Cabinet({ user, onLogout }: { user: User; onLogout: () => void }) {
           </span>
         </Link>
         <nav aria-label="Основная навигация">
+          {!staff && (
+            <>
+              <NavLink to="/schedule">Расписание</NavLink>
+              <NavLink to="/academic-results">Успеваемость</NavLink>
+            </>
+          )}
           <NavLink to="/requests">
             {staff ? "Очередь заявок" : "Заявки и справки"}
           </NavLink>
@@ -770,6 +743,13 @@ function Cabinet({ user, onLogout }: { user: User; onLogout: () => void }) {
       <main id="main" tabIndex={-1}>
         <ErrorBox error={error} />
         <Routes>
+          {!staff && (
+            <>
+              <Route path="/schedule" element={<SchedulePage user={user} />} />
+              <Route path="/schedule/:id" element={<LessonPage />} />
+              <Route path="/academic-results" element={<ResultsPage />} />
+            </>
+          )}
           <Route path="/profile" element={<Profile user={user} />} />
           <Route path="/requests" element={<RequestList user={user} />} />
           <Route
@@ -791,7 +771,7 @@ function Cabinet({ user, onLogout }: { user: User; onLogout: () => void }) {
       </main>
       <footer>
         <span>Университет Северного кампуса</span>
-        <span>Демонстрационный сервис · Итерация 01</span>
+        <span>Демонстрационный сервис · Итерация 02</span>
       </footer>
     </>
   );
