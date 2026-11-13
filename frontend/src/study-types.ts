@@ -13,6 +13,7 @@ export type LessonSnapshot = {
 };
 export type Lesson = LessonSnapshot & {
   id: number;
+  group_id: number;
   group: string;
   subject: string;
   teacher: string;

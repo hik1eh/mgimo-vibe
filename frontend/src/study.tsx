@@ -107,7 +107,7 @@ function Changes({ lesson }: { lesson: Lesson }) {
     </div>
   );
 }
-function LessonCard({ lesson, query }: { lesson: Lesson; query: string }) {
+export function LessonCard({ lesson, query }: { lesson: Lesson; query: string }) {
   return (
     <article
       className={`lesson-card ${lesson.status === "cancelled" ? "cancelled-card" : ""}`}

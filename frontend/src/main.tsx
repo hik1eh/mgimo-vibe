@@ -25,6 +25,20 @@ import {
 import "./style.css";
 import { ErrorBox, useResource } from "./ui";
 import { SchedulePage, LessonPage, ResultsPage } from "./study";
+import {
+  TodayPage,
+  AnnouncementsPage,
+  AnnouncementPage,
+  StudentAccount,
+  NotificationExtras,
+} from "./campus";
+import {
+  StaffSchedulePage,
+  StaffLessonPage,
+  StaffAnnouncementsPage,
+  StaffAnnouncementPage,
+} from "./staff";
+import "./campus.css";
 
 function Badge({ status }: { status: Status }) {
   return <span className={`badge ${status}`}>{statusLabels[status]}</span>;
@@ -649,9 +663,9 @@ function Notifications() {
   return (
     <>
       <div className="page-title">
-        <span className="eyebrow">СОБЫТИЯ ПО ЗАЯВКАМ</span>
+        <span className="eyebrow">ВАЖНОЕ В КАБИНЕТЕ</span>
         <h1>Уведомления</h1>
-        <p>Откройте событие, чтобы перейти к заявке.</p>
+        <p>Личные события, учебные напоминания и сообщения вашего кампуса.</p>
       </div>
       <section className="panel">
         <div className="section-heading">
@@ -684,6 +698,7 @@ function Notifications() {
           </button>
         ))}
       </section>
+      <NotificationExtras />
     </>
   );
 }
@@ -708,8 +723,8 @@ function Cabinet({ user, onLogout }: { user: User; onLogout: () => void }) {
         Конкурсный прототип{" "}
         <span>· Университет, профили и документы вымышлены</span>
       </div>
-      <header>
-        <Link className="brand" to="/requests">
+      <header className={staff ? "staff-header" : "student-header"}>
+        <Link className="brand" to={staff ? "/requests" : "/today"}>
           <span className="brand-mark">СК</span>
           <span>
             Цифровой
@@ -717,24 +732,37 @@ function Cabinet({ user, onLogout }: { user: User; onLogout: () => void }) {
             <strong>деканат</strong>
           </span>
         </Link>
-        <nav aria-label="Основная навигация">
+        <nav
+          className={staff ? "staff-nav" : "student-nav"}
+          aria-label="Основная навигация"
+        >
           {!staff && (
             <>
+              <NavLink to="/today">Сегодня</NavLink>
               <NavLink to="/schedule">Расписание</NavLink>
-              <NavLink to="/academic-results">Успеваемость</NavLink>
+              <NavLink to="/academic-results">Оценки</NavLink>
             </>
           )}
           <NavLink to="/requests">
-            {staff ? "Очередь заявок" : "Заявки и справки"}
+            {staff ? "Очередь заявок" : "Заявки"}
           </NavLink>
-          {!staff && <NavLink to="/notifications">Уведомления</NavLink>}
-          <NavLink to="/profile">Профиль</NavLink>
+          {staff && (
+            <>
+              <NavLink to="/staff/announcements">Объявления</NavLink>
+              <NavLink to="/staff/schedule">Расписание</NavLink>
+              <NavLink to="/profile">Профиль</NavLink>
+            </>
+          )}
         </nav>
         <div className="header-user">
-          <span>
-            {user.full_name}
-            <small>{staff ? "Сотрудник" : user.group}</small>
-          </span>
+          {staff ? (
+            <span>
+              {user.full_name}
+              <small>Сотрудник</small>
+            </span>
+          ) : (
+            <StudentAccount />
+          )}
           <button className="logout" onClick={logout}>
             Выйти
           </button>
@@ -745,9 +773,39 @@ function Cabinet({ user, onLogout }: { user: User; onLogout: () => void }) {
         <Routes>
           {!staff && (
             <>
+              <Route path="/today" element={<TodayPage user={user} />} />
+              <Route path="/announcements" element={<AnnouncementsPage />} />
+              <Route path="/announcements/:id" element={<AnnouncementPage />} />
               <Route path="/schedule" element={<SchedulePage user={user} />} />
               <Route path="/schedule/:id" element={<LessonPage />} />
               <Route path="/academic-results" element={<ResultsPage />} />
+            </>
+          )}
+          {staff && (
+            <>
+              <Route path="/staff/schedule" element={<StaffSchedulePage />} />
+              <Route
+                path="/staff/schedule/:id"
+                element={<StaffLessonPage user={user} />}
+              />
+              <Route
+                path="/staff/announcements"
+                element={<StaffAnnouncementsPage />}
+              />
+              <Route
+                path="/staff/announcements/new"
+                element={
+                  <StaffAnnouncementPage
+                    key="new-announcement"
+                    create
+                    user={user}
+                  />
+                }
+              />
+              <Route
+                path="/staff/announcements/:id"
+                element={<StaffAnnouncementPage user={user} />}
+              />
             </>
           )}
           <Route path="/profile" element={<Profile user={user} />} />
@@ -766,12 +824,15 @@ function Cabinet({ user, onLogout }: { user: User; onLogout: () => void }) {
           {!staff && (
             <Route path="/notifications" element={<Notifications />} />
           )}
-          <Route path="*" element={<Navigate to="/requests" replace />} />
+          <Route
+            path="*"
+            element={<Navigate to={staff ? "/requests" : "/today"} replace />}
+          />
         </Routes>
       </main>
-      <footer>
+      <footer className={staff ? "" : "student-footer"}>
         <span>Университет Северного кампуса</span>
-        <span>Демонстрационный сервис · Итерация 02</span>
+        <span>Демонстрационный сервис · Итерация 03</span>
       </footer>
     </>
   );
