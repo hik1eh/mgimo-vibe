@@ -15,14 +15,20 @@ with httpx.Client(base_url='http://127.0.0.1:8000/api/v1', timeout=10) as client
     requests = client.get('/requests').json()
     assert requests, 'Run smoke.py first.'
     notifications = client.get('/notifications').json()
+    context = client.get('/study-context').json()
+    schedule = client.get('/schedule').json()
+    academic = client.get('/academic-results').json()
     print('READY: restart the API and PostgreSQL, then press Enter.', flush=True)
     input()
     assert client.get('/me').json() == profile
     assert client.get('/requests').json() == requests
     assert client.get('/notifications').json() == notifications
+    assert client.get('/study-context').json() == context
+    assert client.get('/schedule').json() == schedule
+    assert client.get('/academic-results').json() == academic
     for req in requests:
         if req['status'] == 'ready':
             doc = client.get(f"/requests/{req['id']}/document")
             assert doc.status_code == 200 and doc.content.startswith(b'%PDF')
     assert client.post('/auth/logout').status_code == 204
-    print('PASS: session, profile, requests, notifications and PDF survived restart.', flush=True)
+    print('PASS: session, profile, requests, notifications, PDF, schedule and results survived restart.', flush=True)

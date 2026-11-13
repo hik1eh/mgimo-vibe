@@ -4,9 +4,10 @@ from .config import settings
 from .db import SessionLocal
 from .models import Faculty, Group, User
 from .security import passwords
+from .study_seed import seed_study
 
 
-def seed(db, credentials):
+def seed(db, credentials, demo_date=None):
     faculties = [('Факультет общественных наук', 'ОН-201'), ('Факультет цифровых технологий', 'ЦТ-202')]
     groups = []
     for name, group_name in faculties:
@@ -34,6 +35,8 @@ def seed(db, credentials):
             db.add(User(login=login, full_name=name, role=role, faculty_id=group.faculty_id,
                 group_id=group.id if role == 'student' else None, direction=direction,
                 course=course, password_hash=passwords.hash(password)))
+    db.flush()
+    seed_study(db, demo_date)
     db.commit()
 
 

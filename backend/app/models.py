@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
-from sqlalchemy import (String, Integer, Text, DateTime, ForeignKey, ForeignKeyConstraint,
-                        UniqueConstraint, CheckConstraint, Boolean)
+from datetime import date, datetime, timezone
+from sqlalchemy import (String, Integer, Text, Date, DateTime, ForeignKey, ForeignKeyConstraint,
+                        UniqueConstraint, CheckConstraint, Boolean, JSON)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .db import Base
 
@@ -98,3 +98,64 @@ class Notification(Base):
     title: Mapped[str] = mapped_column(String(200))
     read: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class StudyScenario(Base):
+    __tablename__ = 'study_scenarios'
+    __table_args__ = (CheckConstraint('id = 1', name='single_study_scenario'),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    reference_date: Mapped[date] = mapped_column(Date)
+
+
+class Lesson(Base):
+    __tablename__ = 'lessons'
+    __table_args__ = (
+        CheckConstraint('ends_at > starts_at', name='lesson_time_order'),
+        CheckConstraint("status IN ('scheduled','moved','cancelled')", name='lesson_status'),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    demo_key: Mapped[str | None] = mapped_column(String(80), unique=True, nullable=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey('groups.id'), index=True)
+    subject: Mapped[str] = mapped_column(String(180))
+    teacher: Mapped[str] = mapped_column(String(180))
+    kind: Mapped[str] = mapped_column(String(50))
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    building: Mapped[str] = mapped_column(String(120))
+    room: Mapped[str] = mapped_column(String(40))
+    status: Mapped[str] = mapped_column(String(20), default='scheduled')
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    __mapper_args__ = {'version_id_col': version}
+    group: Mapped[Group] = relationship()
+    changes: Mapped[list['LessonChange']] = relationship(order_by='LessonChange.id')
+
+
+class LessonChange(Base):
+    __tablename__ = 'lesson_changes'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    lesson_id: Mapped[int] = mapped_column(ForeignKey('lessons.id'), index=True)
+    actor_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
+    before: Mapped[dict] = mapped_column(JSON)
+    after: Mapped[dict] = mapped_column(JSON)
+    reason: Mapped[str] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class AcademicResult(Base):
+    __tablename__ = 'academic_results'
+    __table_args__ = (
+        CheckConstraint('semester BETWEEN 1 AND 12', name='academic_semester'),
+        CheckConstraint("status IN ('upcoming','awaiting','published')", name='academic_status'),
+        CheckConstraint("kind IN ('credit','exam')", name='academic_kind'),
+        CheckConstraint("(kind='credit' AND grade IS NULL AND ((status='published' AND credit_passed IS NOT NULL) OR (status<>'published' AND credit_passed IS NULL))) OR (kind='exam' AND credit_passed IS NULL AND ((status='published' AND grade IS NOT NULL AND grade BETWEEN 2 AND 5) OR (status<>'published' AND grade IS NULL)))", name='academic_outcome'),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    demo_key: Mapped[str | None] = mapped_column(String(80), unique=True, nullable=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
+    subject: Mapped[str] = mapped_column(String(180))
+    semester: Mapped[int] = mapped_column(Integer, index=True)
+    kind: Mapped[str] = mapped_column(String(20))
+    status: Mapped[str] = mapped_column(String(20))
+    control_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    grade: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    credit_passed: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
