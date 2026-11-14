@@ -8,7 +8,6 @@ import {
   type FormEvent,
 } from "react";
 import {
-  ArrowLeft,
   ArrowRight,
   Eye,
   EyeSlash,
@@ -25,7 +24,7 @@ import campusAtrium from "./assets/campus-atrium.webp";
 import authLight from "./assets/auth-light.webp";
 import "./auth.css";
 
-const TypeFace = lazy(() => import("./type-face"));
+const StudentCard = lazy(() => import("./student-card"));
 const campus = [
   {
     image: campusExterior,
@@ -61,119 +60,48 @@ function useMedia(query: string) {
 
 function CampusCarousel({
   running,
-  onHold,
-  onSelect,
-  reset,
   reduced,
 }: {
   running: boolean;
-  onHold: (value: boolean) => void;
-  onSelect: () => void;
-  reset: number;
   reduced: boolean;
 }) {
-  const [selected, setSelected] = useState<number | null>(null);
-  useEffect(() => setSelected(null), [reset]);
-  const choose = (index: number) => {
-    setSelected((index + campus.length) % campus.length);
-    onSelect();
-  };
-  const current = selected ?? 1;
+  const photos = [...campus, ...campus.slice(0, 2)];
   return (
-    <section
-      className="auth-carousel"
-      aria-label="Фотографии Северного кампуса"
-      aria-roledescription="карусель"
-      onMouseEnter={() => onHold(true)}
-      onMouseLeave={() => onHold(false)}
-      onFocus={() => onHold(true)}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) onHold(false);
-      }}
-      onKeyDown={(event) => {
-        if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
-          event.preventDefault();
-          choose(current + (event.key === "ArrowRight" ? 1 : -1));
-        }
-      }}
-    >
+    <section className="auth-carousel" aria-label={campus[0].detail}>
       <div
         className="auth-photo-stage"
-        data-manual={selected !== null || reduced ? "true" : undefined}
-        data-running={running ? "true" : "false"}
+        data-reduced={reduced || undefined}
+        data-running={running}
       >
-        {campus.map((photo, index) => {
-          const offset =
-            ((index - current + campus.length + 1) % campus.length) - 1;
-          return (
-            <figure
-              className="auth-photo-card"
-              key={photo.image}
-              data-offset={offset}
-              aria-label={`${index + 1} из ${campus.length}: ${photo.detail}`}
-              style={
-                {
-                  "--card-phase": `${(-index * AUTH_MOTION.carouselLoopSeconds) / campus.length}s`,
-                } as CSSProperties
-              }
-            >
-              <img
-                src={photo.image}
-                alt={photo.alt}
-                width="1536"
-                height="1024"
-                decoding="async"
-              />
-              <figcaption>
-                <span>{photo.detail}</span>
-                <strong>{photo.title}</strong>
-                <span className="auth-photo-number">0{index + 1}</span>
-              </figcaption>
-            </figure>
-          );
-        })}
+        {photos.map((photo, index) => (
+          <figure
+            className="auth-photo-card"
+            key={`${photo.image}-${index}`}
+            data-index={index}
+            aria-hidden={index >= campus.length || undefined}
+            style={
+              {
+                "--card-phase": `${(-index * AUTH_MOTION.carouselLoopSeconds) / photos.length}s`,
+              } as CSSProperties
+            }
+          >
+            <img
+              src={photo.image}
+              alt={photo.alt}
+              width="1536"
+              height="1024"
+              decoding="async"
+            />
+          </figure>
+        ))}
       </div>
-      <div className="auth-carousel-controls">
-        <button
-          type="button"
-          className="auth-icon-button"
-          aria-label="Предыдущее фото"
-          onClick={() => choose(current - 1)}
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <div className="auth-photo-index" aria-label="Выбор фотографии">
-          {campus.map((photo, index) => (
-            <button
-              type="button"
-              key={photo.image}
-              aria-label={`Показать фото: ${photo.detail}`}
-              aria-pressed={selected === index}
-              onClick={() => choose(index)}
-            >
-              <span />
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          className="auth-icon-button"
-          aria-label="Следующее фото"
-          onClick={() => choose(current + 1)}
-        >
-          <ArrowRight size={18} />
-        </button>
-      </div>
-      <p className="auth-image-note">Образы вымышленного кампуса</p>
     </section>
   );
 }
 
 function CampusScene({ reduced }: { reduced: boolean }) {
   const scene = useRef<HTMLElement>(null);
-  const [paused, setPaused] = useState(false),
-    [hold, setHold] = useState(false),
-    [reset, setReset] = useState(0);
+  const [paused, setPaused] = useState(false);
   const [visible, setVisible] = useState(
     document.visibilityState === "visible",
   );
@@ -190,7 +118,7 @@ function CampusScene({ reduced }: { reduced: boolean }) {
     if (scene.current) observer.observe(scene.current);
     return () => observer.disconnect();
   }, []);
-  const running = !paused && !hold && !reduced && visible && inView;
+  const running = !paused && !reduced && visible && inView;
   return (
     <section
       ref={scene}
@@ -217,25 +145,15 @@ function CampusScene({ reduced }: { reduced: boolean }) {
       <div className="auth-scene-content">
         <div className="auth-portrait">
           <div className="auth-portrait-label">
-            <span /> ЗНАНИЯ ОБРЕТАЮТ ФОРМУ
+            <span /> ТВОЙ СТУДЕНЧЕСКИЙ МИР
           </div>
           <div
             className="auth-portrait-model"
             role="img"
-            aria-label="Вращающаяся трёхмерная голова из строк University North Campus"
+            aria-label="Вращающийся объёмный студенческий билет с синей обложкой"
           >
-            <Suspense
-              fallback={
-                <div className="auth-type-fallback">
-                  University
-                  <br />
-                  North
-                  <br />
-                  <em>Campus.</em>
-                </div>
-              }
-            >
-              <TypeFace running={running} reduced={reduced} />
+            <Suspense fallback={null}>
+              <StudentCard running={running} reduced={reduced} />
             </Suspense>
           </div>
           <p className="auth-portrait-caption">
@@ -244,13 +162,7 @@ function CampusScene({ reduced }: { reduced: boolean }) {
             <em>North Campus.</em>
           </p>
         </div>
-        <CampusCarousel
-          running={running}
-          reduced={reduced}
-          onHold={setHold}
-          onSelect={() => setPaused(true)}
-          reset={reset}
-        />
+        <CampusCarousel running={running} reduced={reduced} />
       </div>
       <div className="auth-scene-bottom">
         <p>
@@ -269,7 +181,6 @@ function CampusScene({ reduced }: { reduced: boolean }) {
           }
           aria-pressed={paused || reduced}
           onClick={() => {
-            if (paused) setReset((value) => value + 1);
             setPaused(!paused);
           }}
         >

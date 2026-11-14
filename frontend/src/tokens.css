@@ -61,6 +61,10 @@
   --auth-beam-error-filter: hue-rotate(150deg) saturate(0.7);
   --auth-photo-shade: #112439db;
   --auth-photo-shadow: 0 24px 64px #07142138;
+  --auth-photo-size: clamp(210px, 22vw, 340px);
+  --auth-photo-travel: calc(50svh + var(--auth-photo-size) * 0.67);
+  --auth-book-navy: #12244d;
+  --auth-book-paper: #e9e4d8;
   --auth-frame-radius: 32px;
   --auth-scene-radius: 24px;
   --auth-control-radius: 12px;

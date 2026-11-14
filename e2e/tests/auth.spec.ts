@@ -49,19 +49,30 @@ for (const width of [360, 390, 768, 1000, 1440]) {
       page.getByRole("heading", { name: "С возвращением." }),
     ).toBeVisible();
     await noOverflow(page);
+    const fullShell = await page.locator(".auth-shell").boundingBox();
+    expect(fullShell!.x).toBe(0);
+    expect(fullShell!.y).toBe(0);
+    expect(fullShell!.width).toBe(width);
+    await expect(page.locator(".auth-carousel button")).toHaveCount(0);
     if (width < 1000) {
       await expect(page.locator(".auth-scene")).toHaveCount(0);
       await expect(page.locator("canvas")).toHaveCount(0);
       expect(
         requested.filter(
-          (url) => /\/campus-.*\.webp/.test(url) || url.includes("/type-face-"),
+          (url) =>
+            /\/campus-.*\.webp/.test(url) || url.includes("/student-card"),
         ),
       ).toHaveLength(0);
     } else {
-      await expect(page.locator("canvas[data-typeface]")).toBeVisible();
+      await expect(page.locator("canvas[data-student-card]")).toBeVisible();
       const shell = await page.locator(".auth-shell").boundingBox();
       const panel = await page.locator(".auth-panel").boundingBox();
       expect(panel!.width / shell!.width).toBeCloseTo(0.35, 2);
+      const scene = await page.locator(".auth-scene").boundingBox();
+      const stream = await page.locator(".auth-photo-stage").boundingBox();
+      expect(scene!.x).toBe(0);
+      expect(stream!.y).toBe(0);
+      expect(stream!.height).toBeCloseTo(scene!.height, 0);
       await expect
         .poll(() =>
           page
@@ -162,23 +173,38 @@ test("auth fields, keyboard, light states, loading and error preserve input", as
   });
 });
 
-test("auth motion moves, pauses in place, resumes and supports photo selection", async ({
+test("auth motion continues on hover and only explicit pause stops it", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
-  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.setViewportSize({ width: 1440, height: 900 });
   const errors: string[] = [];
   observeErrors(page, errors);
   await page.goto("/");
-  const canvas = page.locator("canvas[data-typeface]");
+  const canvas = page.locator("canvas[data-student-card]");
   await expect(canvas).toBeVisible();
   await page.waitForTimeout(2600);
   const before = await canvas.screenshot();
+  const region = await page.locator(".auth-photo-stage").boundingBox();
+  await page.mouse.move(
+    region!.x + region!.width / 2,
+    region!.y + region!.height / 2,
+  );
   await page.waitForTimeout(400);
+  await expect(page.locator(".auth-scene")).toHaveAttribute(
+    "data-running",
+    "true",
+  );
   expect((await canvas.screenshot()).equals(before)).toBe(false);
-  await page
-    .getByRole("button", { name: "Приостановить анимацию сцены" })
-    .click();
+  const card = page.locator(".auth-photo-card").nth(2);
+  const previousTransform = await card.evaluate(
+    (node) => getComputedStyle(node).transform,
+  );
+  await page.waitForTimeout(300);
+  expect(
+    await card.evaluate((node) => getComputedStyle(node).transform),
+  ).not.toBe(previousTransform);
+  await page.locator(".auth-motion-toggle").click();
   await expect(page.locator(".auth-scene")).toHaveAttribute(
     "data-running",
     "false",
@@ -187,33 +213,61 @@ test("auth motion moves, pauses in place, resumes and supports photo selection",
   await page.waitForTimeout(400);
   expect((await canvas.screenshot()).equals(paused)).toBe(true);
   expect(
-    await page
-      .locator(".auth-photo-card")
-      .first()
-      .evaluate((card) => getComputedStyle(card).animationPlayState),
+    await card.evaluate((node) => getComputedStyle(node).animationPlayState),
   ).toBe("paused");
   await page.screenshot({
     path: "/artifacts/after/auth-motion-1440.png",
     fullPage: true,
   });
-  await page.getByRole("button", { name: "Продолжить анимацию сцены" }).click();
+  await page.locator(".auth-motion-toggle").click();
   await expect(page.locator(".auth-scene")).toHaveAttribute(
     "data-running",
     "true",
   );
-  await page
-    .getByRole("button", { name: "Показать фото: Университетская библиотека" })
-    .click();
-  await expect(
-    page.getByRole("button", {
-      name: "Показать фото: Университетская библиотека",
-    }),
-  ).toHaveAttribute("aria-pressed", "true");
-  await page.keyboard.press("ArrowRight");
-  await expect(
-    page.getByRole("button", { name: "Показать фото: Главный атриум" }),
-  ).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".auth-carousel button")).toHaveCount(0);
   expect(errors).toEqual([]);
+});
+
+test("full-height photo stream shows complete photographs throughout its cycle", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  await expect(page.locator(".auth-photo-card img").first()).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.locator(".auth-photo-card").evaluateAll((cards) => {
+    for (const card of cards)
+      for (const animation of card.getAnimations()) animation.pause();
+  });
+  for (const elapsed of [0, 1800, 3600, 5400, 7200, 9000, 10800, 12600]) {
+    const complete = await page
+      .locator(".auth-photo-card")
+      .evaluateAll((cards, time) => {
+        for (const card of cards)
+          for (const animation of card.getAnimations())
+            animation.currentTime = time;
+        const scene = document
+          .querySelector(".auth-scene")!
+          .getBoundingClientRect();
+        return cards.filter((card) => {
+          const box = card.getBoundingClientRect();
+          return (
+            getComputedStyle(card).opacity !== "0" &&
+            box.top >= scene.top &&
+            box.bottom <= scene.bottom &&
+            box.left >= scene.left &&
+            box.right <= scene.right
+          );
+        }).length;
+      }, elapsed);
+    expect(complete, `No complete photo at ${elapsed} ms`).toBeGreaterThan(0);
+    if (elapsed % 3600 === 0)
+      await page.screenshot({
+        path: `/artifacts/after/auth-flow-${elapsed}.png`,
+        fullPage: true,
+      });
+  }
 });
 
 test("auth remains usable without WebGL", async ({ page }) => {
