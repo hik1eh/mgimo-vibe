@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useRef, useState, type FormEvent } from "react";
+import { StrictMode, useEffect, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import {
   BrowserRouter,
@@ -15,7 +15,6 @@ import {
   api,
   ApiError,
   refreshCsrf,
-  signIn,
   statusLabels,
   date,
   type User,
@@ -23,6 +22,7 @@ import {
   type Status,
   type Notice,
 } from "./api";
+import { Login } from "./auth";
 import "./tokens.css";
 import "./style.css";
 import { ErrorBox, useResource } from "./ui";
@@ -55,129 +55,6 @@ function RouteFocus() {
 
 function Badge({ status }: { status: Status }) {
   return <span className={`badge ${status}`}>{statusLabels[status]}</span>;
-}
-
-function Login({
-  onLogin,
-  expired = false,
-}: {
-  onLogin: (user: User) => void;
-  expired?: boolean;
-}) {
-  const container = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (expired)
-      container.current?.querySelector<HTMLInputElement>("input")?.focus();
-  }, [expired]);
-  const [login, setLogin] = useState(""),
-    [password, setPassword] = useState(""),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError("");
-    try {
-      onLogin(await signIn(login, password));
-      setPassword("");
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <div
-      ref={container}
-      className={expired ? "session-overlay" : "login-page"}
-      role={expired ? "dialog" : "main"}
-      aria-modal={expired ? true : undefined}
-      aria-labelledby={expired ? "login-title" : undefined}
-      onKeyDown={(e) => {
-        if (!expired || e.key !== "Tab") return;
-        const fields = Array.from(
-          container.current?.querySelectorAll<HTMLElement>(
-            "input,button:not(:disabled),a[href]",
-          ) || [],
-        );
-        const first = fields[0],
-          last = fields.at(-1);
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last?.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first?.focus();
-        }
-      }}
-    >
-      <div className="login-intro">
-        <div className="monogram">
-          СК
-          <span>
-            Университет
-            <br />
-            Северного кампуса
-          </span>
-        </div>
-        <span className="eyebrow">СТУДЕНТАМ И ДЕКАНАТУ</span>
-        <h1>
-          Меньше ожидания.
-          <br />
-          Больше ясности.
-        </h1>
-        <p>
-          Закажите справку, уточните детали и получите документ в одном
-          кабинете.
-        </p>
-        <div className="prototype">
-          Конкурсный прототип · Все данные вымышлены
-        </div>
-      </div>
-      <section className="login-card">
-        <span className="eyebrow">ЦИФРОВОЙ ДЕКАНАТ</span>
-        <h2 id="login-title">
-          {expired ? "Войдите снова" : "Добро пожаловать"}
-        </h2>
-        <p className="muted">
-          {expired
-            ? "Сессия завершена. После входа вы сможете продолжить."
-            : "Используйте доступ, который выдала команда проекта."}
-        </p>
-        <form onSubmit={submit}>
-          <label>
-            Логин
-            <input
-              required
-              autoComplete="username"
-              value={login}
-              onChange={(e) => setLogin(e.target.value)}
-              maxLength={80}
-            />
-          </label>
-          <label>
-            Пароль
-            <input
-              required
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              maxLength={200}
-            />
-          </label>
-          <ErrorBox error={error} />
-          <button className="primary" disabled={busy}>
-            {busy ? "Входим…" : "Войти в кабинет"} <span aria-hidden>→</span>
-          </button>
-        </form>
-        <p className="fine">
-          Демодоступы передаются отдельно. Настоящие университетские системы не
-          подключены.
-        </p>
-      </section>
-    </div>
-  );
 }
 
 function Profile({ user }: { user: User }) {

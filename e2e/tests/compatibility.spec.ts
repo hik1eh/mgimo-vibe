@@ -20,6 +20,7 @@ for (const [name, engine, width] of [
       const errors: string[] = [];
       page.on("pageerror", (e) => errors.push(e.message));
       await login(page);
+      await page.waitForLoadState("networkidle");
       for (const path of [
         "/today",
         "/schedule?view=week",
