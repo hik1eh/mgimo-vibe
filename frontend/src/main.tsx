@@ -43,6 +43,9 @@ import {
 import "./campus.css";
 import "./polish.css";
 import { submissionKey } from "./ids";
+import { SignOut } from "@phosphor-icons/react";
+import { SectionBanner } from "./section-banner";
+import "./cabinet-header.css";
 
 function RouteFocus() {
   const { pathname } = useLocation();
@@ -111,12 +114,16 @@ function RequestList({ user }: { user: User }) {
   );
   return (
     <>
-      <div className="page-title title-row">
+      <div
+        className={staff ? "page-title title-row" : "section-intro title-row"}
+      >
         <div>
-          <span className="eyebrow">
-            {staff ? "КАБИНЕТ СОТРУДНИКА" : "СЕРВИСЫ ДЕКАНАТА"}
-          </span>
-          <h1>{staff ? "Очередь заявок" : "Заявки и справки"}</h1>
+          {staff && (
+            <>
+              <span className="eyebrow">КАБИНЕТ СОТРУДНИКА</span>
+              <h1>Очередь заявок</h1>
+            </>
+          )}
           <p>
             {staff
               ? user.faculty
@@ -678,17 +685,20 @@ function Cabinet({ user, onLogout }: { user: User; onLogout: () => void }) {
       <a className="skip-link" href="#main">
         К содержимому
       </a>
-      <div className="prototype-bar">
-        Конкурсный прототип{" "}
-        <span>· Университет, профили и документы вымышлены</span>
-      </div>
-      <header className={staff ? "staff-header" : "student-header"}>
+      <header
+        className={`cabinet-header ${staff ? "staff-header" : "student-header"}`}
+      >
         <Link className="brand" to={staff ? "/requests" : "/today"}>
           <span className="brand-mark">СК</span>
-          <span>
+          <span className="brand-title">
             Цифровой
             <br />
             <strong>деканат</strong>
+          </span>
+          <span className="brand-university">
+            Университет
+            <br />
+            Северного кампуса
           </span>
         </Link>
         <nav
@@ -722,74 +732,92 @@ function Cabinet({ user, onLogout }: { user: User; onLogout: () => void }) {
           ) : (
             <StudentAccount />
           )}
-          <button className="logout" onClick={logout}>
-            Выйти
+          <button
+            className="logout"
+            onClick={logout}
+            aria-label="Выйти"
+            title="Выйти"
+          >
+            <SignOut size={22} aria-hidden="true" />
           </button>
         </div>
       </header>
-      <main id="main" tabIndex={-1}>
+      <main id="main" className="cabinet-main" tabIndex={-1}>
         <RouteFocus />
-        <ErrorBox error={error} />
-        <Routes>
-          {!staff && (
-            <>
-              <Route path="/today" element={<TodayPage user={user} />} />
-              <Route path="/announcements" element={<AnnouncementsPage />} />
-              <Route path="/announcements/:id" element={<AnnouncementPage />} />
-              <Route path="/schedule" element={<SchedulePage user={user} />} />
-              <Route path="/schedule/:id" element={<LessonPage />} />
-              <Route path="/academic-results" element={<ResultsPage />} />
-            </>
-          )}
-          {staff && (
-            <>
-              <Route path="/staff/schedule" element={<StaffSchedulePage />} />
-              <Route
-                path="/staff/schedule/:id"
-                element={<StaffLessonPage user={user} />}
-              />
-              <Route
-                path="/staff/announcements"
-                element={<StaffAnnouncementsPage />}
-              />
-              <Route
-                path="/staff/announcements/new"
-                element={
-                  <StaffAnnouncementPage
-                    key="new-announcement"
-                    create
-                    user={user}
-                  />
-                }
-              />
-              <Route
-                path="/staff/announcements/:id"
-                element={<StaffAnnouncementPage user={user} />}
-              />
-            </>
-          )}
-          <Route path="/profile" element={<Profile user={user} />} />
-          <Route path="/requests" element={<RequestList user={user} />} />
-          <Route
-            path="/requests/new"
-            element={
-              staff ? (
-                <Navigate to="/requests" replace />
-              ) : (
-                <NewRequest user={user} />
-              )
-            }
-          />
-          <Route path="/requests/:id" element={<DetailRoute user={user} />} />
-          {!staff && (
-            <Route path="/notifications" element={<Notifications />} />
-          )}
-          <Route
-            path="*"
-            element={<Navigate to={staff ? "/requests" : "/today"} replace />}
-          />
-        </Routes>
+        {!staff && <SectionBanner />}
+        <div className="cabinet-content">
+          <ErrorBox error={error} />
+          <Routes>
+            {!staff && (
+              <>
+                <Route path="/today" element={<TodayPage user={user} />} />
+                <Route path="/announcements" element={<AnnouncementsPage />} />
+                <Route
+                  path="/announcements/:id"
+                  element={<AnnouncementPage />}
+                />
+                <Route
+                  path="/schedule"
+                  element={<SchedulePage user={user} />}
+                />
+                <Route path="/schedule/:id" element={<LessonPage />} />
+                <Route path="/academic-results" element={<ResultsPage />} />
+              </>
+            )}
+            {staff && (
+              <>
+                <Route path="/staff/schedule" element={<StaffSchedulePage />} />
+                <Route
+                  path="/staff/schedule/:id"
+                  element={<StaffLessonPage user={user} />}
+                />
+                <Route
+                  path="/staff/announcements"
+                  element={<StaffAnnouncementsPage />}
+                />
+                <Route
+                  path="/staff/announcements/new"
+                  element={
+                    <StaffAnnouncementPage
+                      key="new-announcement"
+                      create
+                      user={user}
+                    />
+                  }
+                />
+                <Route
+                  path="/staff/announcements/:id"
+                  element={<StaffAnnouncementPage user={user} />}
+                />
+              </>
+            )}
+            <Route path="/profile" element={<Profile user={user} />} />
+            <Route path="/requests" element={<RequestList user={user} />} />
+            <Route
+              path="/requests/new"
+              element={
+                staff ? (
+                  <Navigate to="/requests" replace />
+                ) : (
+                  <NewRequest user={user} />
+                )
+              }
+            />
+            <Route path="/requests/:id" element={<DetailRoute user={user} />} />
+            {!staff && (
+              <Route path="/notifications" element={<Notifications />} />
+            )}
+            <Route
+              path="*"
+              element={<Navigate to={staff ? "/requests" : "/today"} replace />}
+            />
+          </Routes>
+        </div>
       </main>
+      <div className="prototype-bar">
+        Конкурсный прототип{" "}
+        <span>· Университет, профили и документы вымышлены</span>
+      </div>
       <footer className={staff ? "" : "student-footer"}>
         <span>Университет Северного кампуса</span>
         <span>Демонстрационный сервис · Итерация 04</span>

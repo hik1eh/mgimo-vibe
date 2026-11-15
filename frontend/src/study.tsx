@@ -154,9 +154,8 @@ export function SchedulePage({ user }: { user: User }) {
   const context = useResource<StudyContext>("/study-context");
   return (
     <>
-      <div className="page-title">
+      <div className="section-intro">
         <span className="eyebrow">УЧЕБНАЯ НЕДЕЛЯ</span>
-        <h1>Расписание</h1>
         <p>
           {user.group} · {user.faculty}
         </p>
@@ -441,9 +440,8 @@ export function ResultsPage() {
   );
   return (
     <>
-      <div className="page-title">
+      <div className="section-intro">
         <span className="eyebrow">УЧЁБА И СЕССИЯ</span>
-        <h1>Успеваемость</h1>
         <p>Ваши результаты, даты контроля и ближайший зачёт.</p>
       </div>
       <ResourceError error={error} reload={reload} />

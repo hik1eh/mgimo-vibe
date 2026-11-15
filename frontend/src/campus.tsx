@@ -6,6 +6,7 @@ import { addDays, campusDay, campusTime, dayLabel } from "./study-dates";
 import { ErrorBox, useResource } from "./ui";
 import { type Announcement, audienceLabel } from "./campus-types";
 import { LessonCard } from "./study";
+import { Bell, User as UserIcon } from "@phosphor-icons/react";
 
 export function StudentAccount() {
   const { data } = useResource<Notice[]>("/notifications", true);
@@ -17,33 +18,14 @@ export function StudentAccount() {
         to="/notifications"
         aria-label={`Уведомления${unread ? `, непрочитанных: ${unread}` : ""}`}
       >
-        <svg
-          viewBox="0 0 24 24"
-          width="19"
-          height="19"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          aria-hidden
-        >
-          <path d="M5 16h14l-2-3V9a5 5 0 0 0-10 0v4zM10 20h4" />
-        </svg>
+        <span className="account-icon">
+          <Bell size={23} weight="light" aria-hidden="true" />
+          {unread > 0 && <span className="unread-dot" aria-hidden="true" />}
+        </span>
         <span className="account-text">Уведомления</span>
-        {unread > 0 && <b className="unread-count">{unread}</b>}
       </Link>
       <Link className="account-link" to="/profile" aria-label="Профиль">
-        <svg
-          viewBox="0 0 24 24"
-          width="19"
-          height="19"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          aria-hidden
-        >
-          <circle cx="12" cy="7" r="4" />
-          <path d="M4 21v-2a8 8 0 0 1 16 0v2" />
-        </svg>
+        <UserIcon size={23} weight="light" aria-hidden="true" />
         <span className="account-text">Профиль</span>
       </Link>
     </>
@@ -269,10 +251,9 @@ export function TodayPage({ user }: { user: User }) {
     [];
   return (
     <>
-      <div className="page-title home-title">
+      <div className="section-intro home-title">
         <div>
           <span className="eyebrow">{user.group} · СЕВЕРНЫЙ КАМПУС</span>
-          <h1>Сегодня</h1>
           <p>{user.full_name}, всё важное — в вашем кабинете.</p>
         </div>
         <Link className="primary" to="/requests/new">
@@ -397,7 +378,9 @@ export function AnnouncementsPage() {
         </div>
       )}
       <div className="announcements-grid">
-        {data?.map((row) => <AnnouncementCard key={row.id} item={row} />)}
+        {data?.map((row) => (
+          <AnnouncementCard key={row.id} item={row} />
+        ))}
       </div>
     </>
   );

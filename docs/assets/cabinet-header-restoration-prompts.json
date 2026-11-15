@@ -1,0 +1,22 @@
+[
+  {
+    "key": "facade",
+    "prompt": "Use case: precise-object-edit. Asset type: photorealistic university website section banner. The supplied image is the edit target, not inspiration. Restore this same photograph in high resolution with clean fine architectural details. Keep the exact camera viewpoint, subject arrangement, building geometry, furniture, lighting, colors, perspective and aspect ratio. Preserve the fictional cream limestone / black window frames / oak / navy campus identity. Remove blocky compression, blur and tiny-image pixelation; reconstruct plausible fine textures and straight crisp edges without halos or oversharpening. Do not redesign the scene. No people, no text, no logos, no extra objects. Output a large detailed photographic image, at least 2400 pixels wide if supported. Keep this very wide panoramic composition of the white university facade with birch trees in front."
+  },
+  {
+    "key": "atrium",
+    "prompt": "Use case: precise-object-edit. Asset type: photorealistic university website section banner. The supplied image is the edit target, not inspiration. Restore this same photograph in high resolution with clean fine architectural details. Keep the exact camera viewpoint, subject arrangement, building geometry, furniture, lighting, colors, perspective and aspect ratio. Preserve the fictional cream limestone / black window frames / oak / navy campus identity. Remove blocky compression, blur and tiny-image pixelation; reconstruct plausible fine textures and straight crisp edges without halos or oversharpening. Do not redesign the scene. No people, no text, no logos, no extra objects. Output a large detailed photographic image, at least 2400 pixels wide if supported. Keep this landscape composition of the grand curved stairway under a glass atrium roof, navy seats and potted tree."
+  },
+  {
+    "key": "library",
+    "prompt": "Use case: precise-object-edit. Asset type: photorealistic university website section banner. The supplied image is the edit target, not inspiration. Restore this same photograph in high resolution with clean fine architectural details. Keep the exact camera viewpoint, subject arrangement, building geometry, furniture, lighting, colors, perspective and aspect ratio. Preserve the fictional cream limestone / black window frames / oak / navy campus identity. Remove blocky compression, blur and tiny-image pixelation; reconstruct plausible fine textures and straight crisp edges without halos or oversharpening. Do not redesign the scene. No people, no text, no logos, no extra objects. Output a large detailed photographic image, at least 2400 pixels wide if supported. Keep this landscape composition of the arched library with warm oak bookshelves, study tables and navy lounge chairs."
+  },
+  {
+    "key": "student-services",
+    "prompt": "Use case: precise-object-edit. Asset type: photorealistic university website section banner. The supplied image is the edit target, not inspiration. Restore this same photograph in high resolution with clean fine architectural details. Keep the exact camera viewpoint, subject arrangement, building geometry, furniture, lighting, colors, perspective and aspect ratio. Preserve the fictional cream limestone / black window frames / oak / navy campus identity. Remove blocky compression, blur and tiny-image pixelation; reconstruct plausible fine textures and straight crisp edges without halos or oversharpening. Do not redesign the scene. No people, no text, no logos, no extra objects. Output a large detailed photographic image, at least 2400 pixels wide if supported. Keep this wide panoramic composition of the reception lobby, oak service counter on the right, glass windows and navy benches on the left."
+  },
+  {
+    "key": "facade-remove-margins",
+    "prompt": "Use case: precise-object-edit. Edit this university facade photograph. Remove the solid white horizontal margins at the top and bottom by extending the photograph naturally into those strips: blue cloudy sky above, pale grey forecourt paving below. The final photo must fill the entire canvas edge to edge, with NO white border, NO padding, NO letterbox bars. Keep all existing architecture, birch trees, viewpoint, colors and sharpness exactly where they are. Do not crop into or redesign the building. Keep the large high resolution and the current 3:1 canvas shape. No people, text, logos or new objects."
+  }
+]
