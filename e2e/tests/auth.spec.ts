@@ -64,13 +64,23 @@ for (const width of [360, 390, 768, 1000, 1440]) {
         "С возвращением",
       );
       const body = await document.fonts.load(
-        '400 16px "Golos Text"',
+        '400 16px "Manrope"',
         "Логин Пароль",
       );
       return { heading: heading.length, body: body.length };
     });
     expect(fonts.heading).toBeGreaterThan(0);
     expect(fonts.body).toBeGreaterThan(0);
+    await expect(page.locator(".auth-portrait-label")).toHaveCount(0);
+    expect(
+      await page
+        .locator("h1")
+        .evaluate((node) => getComputedStyle(node).fontFamily),
+    ).toBe(
+      await page
+        .locator('input[name="username"]')
+        .evaluate((node) => getComputedStyle(node).fontFamily),
+    );
     const footer = await page.locator(".auth-panel-bottom").boundingBox();
     expect(footer!.y).toBeGreaterThan(900);
     expect(
@@ -84,11 +94,13 @@ for (const width of [360, 390, 768, 1000, 1440]) {
       expect(
         requested.filter(
           (url) =>
-            /\/campus-.*\.webp/.test(url) || url.includes("/student-card"),
+            /\/campus-.*\.webp/.test(url) ||
+            url.includes("/graduation-cap") ||
+            url.includes("/Allura"),
         ),
       ).toHaveLength(0);
     } else {
-      await expect(page.locator("canvas[data-student-card]")).toBeVisible();
+      await expect(page.locator("canvas[data-graduation-cap]")).toBeVisible();
       const shell = await page.locator(".auth-shell").boundingBox();
       const panel = await page.locator(".auth-panel").boundingBox();
       expect(panel!.width / shell!.width).toBeCloseTo(0.35, 2);
@@ -97,6 +109,59 @@ for (const width of [360, 390, 768, 1000, 1440]) {
       expect(scene!.x).toBe(0);
       expect(stream!.y).toBe(0);
       expect(stream!.height).toBeCloseTo(scene!.height, 0);
+      const lettering = page.locator(".auth-script");
+      await expect(lettering).toHaveAttribute("aria-hidden", "true");
+      expect(await lettering.locator("span").allTextContents()).toEqual([
+        "University",
+        "North",
+        "Campus",
+      ]);
+      expect(
+        await page.evaluate(
+          async () =>
+            (await document.fonts.load('400 130px "Allura"', "University"))
+              .length,
+        ),
+      ).toBeGreaterThan(0);
+      const decoration = await lettering.evaluate((node) => {
+        const style = getComputedStyle(node);
+        const initials = [...node.children].map((word) => {
+          const range = document.createRange();
+          range.setStart(word.firstChild!, 0);
+          range.setEnd(word.firstChild!, 1);
+          return range.getBoundingClientRect().toJSON();
+        });
+        return {
+          font: style.fontFamily,
+          size: parseFloat(style.fontSize),
+          opacity: style.opacity,
+          pointer: style.pointerEvents,
+          selection: style.userSelect,
+          color: style.color,
+          animation: style.animationName,
+          angle:
+            (Math.atan2(
+              new DOMMatrix(style.transform).b,
+              new DOMMatrix(style.transform).a,
+            ) *
+              180) /
+            Math.PI,
+          initials,
+        };
+      });
+      expect(decoration.font).toContain("Allura");
+      expect(decoration.size).toBeGreaterThanOrEqual(130);
+      expect(decoration.size).toBeLessThanOrEqual(190);
+      expect(decoration.opacity).toBe("0.2");
+      expect(decoration.pointer).toBe("none");
+      expect(decoration.selection).toBe("none");
+      expect(decoration.color).toBe("rgb(255, 255, 255)");
+      expect(decoration.animation).toBe("none");
+      expect(decoration.angle).toBeCloseTo(-9, 0);
+      for (const initial of decoration.initials) {
+        expect(initial.left).toBeGreaterThanOrEqual(0);
+        expect(initial.right).toBeLessThan(stream!.x);
+      }
       await expect
         .poll(() =>
           page
@@ -231,8 +296,21 @@ test("auth motion has no pause control, continues on hover and respects reduced 
   const errors: string[] = [];
   observeErrors(page, errors);
   await page.goto("/");
-  const canvas = page.locator("canvas[data-student-card]");
+  const canvas = page.locator("canvas[data-graduation-cap]");
   await expect(canvas).toBeVisible();
+  expect(
+    await page
+      .locator(".auth-shell")
+      .evaluate((node) =>
+        node
+          .getAnimations()
+          .every((animation) =>
+            (animation.effect?.getKeyframes() ?? []).every(
+              (frame) => !("transform" in frame),
+            ),
+          ),
+      ),
+  ).toBe(true);
   await page.waitForTimeout(2600);
   const before = await canvas.screenshot();
   const region = await page.locator(".auth-photo-stage").boundingBox();
@@ -279,7 +357,7 @@ test("auth motion has no pause control, continues on hover and respects reduced 
   expect(errors).toEqual([]);
 });
 
-test("full-height photo stream shows complete photographs throughout its cycle", async ({
+test("photo stream keeps complete images and generous gaps throughout its cycle", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
@@ -292,7 +370,7 @@ test("full-height photo stream shows complete photographs throughout its cycle",
       for (const animation of card.getAnimations()) animation.pause();
   });
   for (const elapsed of [0, 1800, 3600, 5400, 7200, 9000, 10800, 12600]) {
-    const complete = await page
+    const metrics = await page
       .locator(".auth-photo-card")
       .evaluateAll((cards, time) => {
         for (const card of cards)
@@ -301,7 +379,7 @@ test("full-height photo stream shows complete photographs throughout its cycle",
         const scene = document
           .querySelector(".auth-scene")!
           .getBoundingClientRect();
-        return cards.filter((card) => {
+        const complete = cards.filter((card) => {
           const box = card.getBoundingClientRect();
           return (
             getComputedStyle(card).opacity !== "0" &&
@@ -311,8 +389,26 @@ test("full-height photo stream shows complete photographs throughout its cycle",
             box.right <= scene.right
           );
         }).length;
+        const visible = cards
+          .filter((card) => parseFloat(getComputedStyle(card).opacity) > 0.1)
+          .map((card) => card.getBoundingClientRect())
+          .filter((box) => box.bottom > scene.top && box.top < scene.bottom)
+          .sort((a, b) => a.top - b.top);
+        return {
+          complete,
+          gaps: visible
+            .slice(1)
+            .map((box, index) => box.top - visible[index].bottom),
+        };
       }, elapsed);
-    expect(complete, `No complete photo at ${elapsed} ms`).toBeGreaterThan(0);
+    expect(
+      metrics.complete,
+      `No complete photo at ${elapsed} ms`,
+    ).toBeGreaterThan(0);
+    for (const gap of metrics.gaps)
+      expect(gap, `Narrow photo gap at ${elapsed} ms`).toBeGreaterThanOrEqual(
+        32,
+      );
     if (elapsed % 3600 === 0)
       await page.screenshot({
         path: `/artifacts/after/auth-flow-${elapsed}.png`,
@@ -334,10 +430,21 @@ test("auth remains usable without WebGL", async ({ page }) => {
   });
   await page.goto("/");
   await expect(page.locator("[data-fallback=true]")).toBeVisible();
+  await expect
+    .poll(() =>
+      page
+        .locator("[data-fallback=true] img")
+        .evaluate((node) => (node as HTMLImageElement).naturalWidth),
+    )
+    .toBeGreaterThan(0);
   await expect(
     page.getByRole("button", { name: "Войти в кабинет" }),
   ).toBeEnabled();
   await noOverflow(page);
+  await page.screenshot({
+    path: "/artifacts/after/auth-cap-fallback-1440.png",
+    fullPage: true,
+  });
 });
 
 test("auth at 200 percent text is readable on mobile", async ({ page }) => {

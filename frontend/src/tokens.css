@@ -58,7 +58,15 @@
   --auth-scene-muted: #afc2d5;
   --auth-scene-border: #547087;
   --font-auth-display: "Manrope", "Segoe UI", sans-serif;
-  --font-auth-body: "Golos Text", "Segoe UI", sans-serif;
+  --font-auth-body: var(--font-auth-display);
+  --font-auth-script: "Allura", cursive;
+  --auth-script-color: #ffffff;
+  --auth-script-opacity: 0.2;
+  --auth-script-size: clamp(130px, 13vw, 190px);
+  --auth-script-leading: 0.95;
+  --auth-script-angle: -9deg;
+  --auth-script-left: clamp(48px, 5vw, 72px);
+  --auth-script-top: clamp(150px, 18svh, 220px);
   --auth-panel-bg: #0d1420;
   --auth-card-bg: #151e2d;
   --auth-input-bg: #0d1420b8;
@@ -87,9 +95,13 @@
   --auth-photo-shade: #112439db;
   --auth-photo-shadow: 0 24px 64px #07142138;
   --auth-photo-size: clamp(210px, 22vw, 340px);
-  --auth-photo-travel: calc(50svh + var(--auth-photo-size) * 0.67);
-  --auth-book-navy: #12244d;
-  --auth-book-paper: #e9e4d8;
+  --auth-photo-gap: clamp(80px, 10svh, 140px);
+  --auth-photo-travel: calc(
+    50svh + var(--auth-photo-size) * 0.67 + var(--auth-photo-gap)
+  );
+  --auth-cap-cloth: #242431;
+  --auth-cap-gold: #edbf39;
+  --auth-cap-inner: #12121c;
   --auth-frame-radius: 32px;
   --auth-scene-radius: 24px;
   --auth-control-radius: 12px;

@@ -18,7 +18,7 @@ import campusAtrium from "./assets/campus-atrium.webp";
 import authLight from "./assets/auth-light.webp";
 import "./auth.css";
 
-const StudentCard = lazy(() => import("./student-card"));
+const GraduationCap = lazy(() => import("./graduation-cap"));
 const campus = [
   {
     image: campusExterior,
@@ -59,7 +59,7 @@ function CampusCarousel({
   running: boolean;
   reduced: boolean;
 }) {
-  const photos = [...campus, ...campus.slice(0, 2)];
+  const photos = [...campus, campus[0]];
   return (
     <section className="auth-carousel" aria-label={campus[0].detail}>
       <div
@@ -133,27 +133,23 @@ function CampusScene({ reduced }: { reduced: boolean }) {
             Северного кампуса
           </span>
         </a>
-        <span className="auth-scene-label">ТВОЯ ТОЧКА РОСТА</span>
+      </div>
+      <div className="auth-script" aria-hidden="true">
+        <span>University</span>
+        <span>North</span>
+        <span>Campus</span>
       </div>
       <div className="auth-scene-content">
         <div className="auth-portrait">
-          <div className="auth-portrait-label">
-            <span /> ТВОЙ СТУДЕНЧЕСКИЙ МИР
-          </div>
           <div
             className="auth-portrait-model"
             role="img"
-            aria-label="Вращающийся объёмный студенческий билет с синей обложкой"
+            aria-label="Вращающаяся академическая шапочка с золотой окантовкой и кисточкой"
           >
             <Suspense fallback={null}>
-              <StudentCard running={running} reduced={reduced} />
+              <GraduationCap running={running} reduced={reduced} />
             </Suspense>
           </div>
-          <p className="auth-portrait-caption">
-            University
-            <br />
-            <em>North Campus.</em>
-          </p>
         </div>
         <CampusCarousel running={running} reduced={reduced} />
       </div>

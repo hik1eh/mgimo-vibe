@@ -23,17 +23,25 @@ for (const [name, engine, width] of [
       await page.waitForLoadState("networkidle");
       for (const path of [
         "/today",
-        "/schedule?view=week",
+        "/schedule",
         "/academic-results",
         "/notifications",
         "/profile",
       ]) {
-        await page.goto(path);
+        // Exercise the app's real navigation. Repeated full-document goto()
+        // can abort unrelated fetches during WebKit document teardown.
+        if (new URL(page.url()).pathname !== path)
+          await page.locator(`header a[href="${path}"]`).last().click();
+        if (path === "/schedule")
+          await page
+            .getByRole("button", { name: "Неделя", exact: true })
+            .click();
         await expect(page.locator("main h1")).toBeVisible();
         await page.waitForLoadState("networkidle");
         await noOverflow(page);
       }
-      await page.goto("/requests/new");
+      await page.locator('header nav a[href="/requests"]').click();
+      await page.getByRole("link", { name: /Заказать справку/ }).click();
       const purpose = `${name} совместимость ${Date.now()}`;
       await page.getByLabel("Место предъявления").fill(purpose);
       await page
