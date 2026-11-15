@@ -40,6 +40,10 @@ for (const [name, engine, width] of [
         .getByRole("button", { name: "Отправить заявку", exact: true })
         .click();
       await expect(page).toHaveURL(/\/requests\/\d+$/);
+      // Wait for the first detail fetch before exercising reload; a URL change
+      // alone can interrupt that fetch in WebKit and report a page error.
+      await expect(page.getByText(purpose, { exact: true })).toBeVisible();
+      await page.waitForLoadState("networkidle");
       await page.reload();
       await expect(page.getByText(purpose, { exact: true })).toBeVisible();
       await page.screenshot({

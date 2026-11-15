@@ -54,6 +54,30 @@ for (const width of [360, 390, 768, 1000, 1440]) {
     expect(fullShell!.y).toBe(0);
     expect(fullShell!.width).toBe(width);
     await expect(page.locator(".auth-carousel button")).toHaveCount(0);
+    await expect(page.locator(".auth-motion-toggle")).toHaveCount(0);
+    await expect(
+      page.getByText("Ближе к знаниям.", { exact: false }),
+    ).toHaveCount(0);
+    const fonts = await page.evaluate(async () => {
+      const heading = await document.fonts.load(
+        '600 24px "Manrope"',
+        "С возвращением",
+      );
+      const body = await document.fonts.load(
+        '400 16px "Golos Text"',
+        "Логин Пароль",
+      );
+      return { heading: heading.length, body: body.length };
+    });
+    expect(fonts.heading).toBeGreaterThan(0);
+    expect(fonts.body).toBeGreaterThan(0);
+    const footer = await page.locator(".auth-panel-bottom").boundingBox();
+    expect(footer!.y).toBeGreaterThan(900);
+    expect(
+      await page
+        .locator(".auth-panel-bottom")
+        .evaluate((node) => parseFloat(getComputedStyle(node).fontSize)),
+    ).toBeLessThan(12);
     if (width < 1000) {
       await expect(page.locator(".auth-scene")).toHaveCount(0);
       await expect(page.locator("canvas")).toHaveCount(0);
@@ -125,6 +149,15 @@ test("auth fields, keyboard, light states, loading and error preserve input", as
     "data-active-field",
     "login",
   );
+  const beam = page.locator(".auth-lights > span").first();
+  await expect(beam).toHaveCSS("opacity", "0.5");
+  const loginTransform = await beam.evaluate(
+    (node) => getComputedStyle(node).transform,
+  );
+  await page.screenshot({
+    path: "/artifacts/after/auth-focus-login-1440.png",
+    fullPage: true,
+  });
   await page.keyboard.press("Tab");
   const password = page.getByLabel("Пароль", { exact: true });
   await expect(password).toBeFocused();
@@ -133,6 +166,13 @@ test("auth fields, keyboard, light states, loading and error preserve input", as
     "data-active-field",
     "password",
   );
+  expect(
+    await beam.evaluate((node) => getComputedStyle(node).transform),
+  ).not.toBe(loginTransform);
+  await page.screenshot({
+    path: "/artifacts/after/auth-focus-password-1440.png",
+    fullPage: true,
+  });
   await page.keyboard.press("Tab");
   await expect(
     page.getByRole("button", { name: "Показать пароль", exact: true }),
@@ -167,13 +207,23 @@ test("auth fields, keyboard, light states, loading and error preserve input", as
     "data-error",
     "true",
   );
+  expect(
+    await beam.evaluate((node) => getComputedStyle(node, "::after").opacity),
+  ).toBe("1");
+  expect(
+    await beam.evaluate(
+      (node) => getComputedStyle(node, "::after").backgroundColor,
+    ),
+  ).not.toBe(
+    await beam.evaluate((node) => getComputedStyle(node).backgroundColor),
+  );
   await page.screenshot({
     path: "/artifacts/after/auth-error-1440.png",
     fullPage: true,
   });
 });
 
-test("auth motion continues on hover and only explicit pause stops it", async ({
+test("auth motion has no pause control, continues on hover and respects reduced motion", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
@@ -204,7 +254,8 @@ test("auth motion continues on hover and only explicit pause stops it", async ({
   expect(
     await card.evaluate((node) => getComputedStyle(node).transform),
   ).not.toBe(previousTransform);
-  await page.locator(".auth-motion-toggle").click();
+  await expect(page.locator(".auth-motion-toggle")).toHaveCount(0);
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await expect(page.locator(".auth-scene")).toHaveAttribute(
     "data-running",
     "false",
@@ -213,13 +264,13 @@ test("auth motion continues on hover and only explicit pause stops it", async ({
   await page.waitForTimeout(400);
   expect((await canvas.screenshot()).equals(paused)).toBe(true);
   expect(
-    await card.evaluate((node) => getComputedStyle(node).animationPlayState),
-  ).toBe("paused");
+    await card.evaluate((node) => getComputedStyle(node).animationName),
+  ).toBe("none");
   await page.screenshot({
     path: "/artifacts/after/auth-motion-1440.png",
     fullPage: true,
   });
-  await page.locator(".auth-motion-toggle").click();
+  await page.emulateMedia({ reducedMotion: "no-preference" });
   await expect(page.locator(".auth-scene")).toHaveAttribute(
     "data-running",
     "true",

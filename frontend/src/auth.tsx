@@ -2,19 +2,13 @@ import {
   lazy,
   Suspense,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
   type FormEvent,
 } from "react";
-import {
-  ArrowRight,
-  Eye,
-  EyeSlash,
-  LockKey,
-  Pause,
-  Play,
-} from "@phosphor-icons/react";
+import { Eye, EyeSlash, LockKey } from "@phosphor-icons/react";
 import { signIn, type User } from "./api";
 import { ErrorBox } from "./ui";
 import { AUTH_MOTION } from "./auth-motion";
@@ -101,7 +95,6 @@ function CampusCarousel({
 
 function CampusScene({ reduced }: { reduced: boolean }) {
   const scene = useRef<HTMLElement>(null);
-  const [paused, setPaused] = useState(false);
   const [visible, setVisible] = useState(
     document.visibilityState === "visible",
   );
@@ -118,7 +111,7 @@ function CampusScene({ reduced }: { reduced: boolean }) {
     if (scene.current) observer.observe(scene.current);
     return () => observer.disconnect();
   }, []);
-  const running = !paused && !reduced && visible && inView;
+  const running = !reduced && visible && inView;
   return (
     <section
       ref={scene}
@@ -163,36 +156,6 @@ function CampusScene({ reduced }: { reduced: boolean }) {
           </p>
         </div>
         <CampusCarousel running={running} reduced={reduced} />
-      </div>
-      <div className="auth-scene-bottom">
-        <p>
-          Ближе к знаниям.
-          <br />
-          <span>Ближе друг к другу.</span>
-        </p>
-        <button
-          type="button"
-          className="auth-motion-toggle"
-          disabled={reduced}
-          aria-label={
-            paused
-              ? "Продолжить анимацию сцены"
-              : "Приостановить анимацию сцены"
-          }
-          aria-pressed={paused || reduced}
-          onClick={() => {
-            setPaused(!paused);
-          }}
-        >
-          {paused || reduced ? (
-            <Play size={16} weight="fill" />
-          ) : (
-            <Pause size={16} weight="fill" />
-          )}
-          <span>
-            {reduced ? "Без движения" : paused ? "Продолжить" : "Пауза"}
-          </span>
-        </button>
       </div>
     </section>
   );
@@ -321,6 +284,44 @@ export function AuthPanel({
     expired,
     desktop,
   } = state;
+  const cardRef = useRef<HTMLDivElement>(null);
+  const illuminated = activeField === "none" && error ? "login" : activeField;
+  useLayoutEffect(() => {
+    const card = cardRef.current;
+    if (!card || !desktop) return;
+    const measure = () => {
+      const input = card.querySelector<HTMLInputElement>(
+        `[data-field="${illuminated === "none" ? "login" : illuminated}"] input`,
+      );
+      if (!input) return;
+      const box = card.getBoundingClientRect();
+      const field = input.getBoundingClientRect();
+      const style = getComputedStyle(card);
+      const inset = parseFloat(style.getPropertyValue("--auth-light-inset"));
+      const length = parseFloat(style.getPropertyValue("--auth-beam-length"));
+      const focus = parseFloat(style.getPropertyValue("--auth-beam-focus"));
+      const targetY = field.top - box.top + field.height / 2;
+      for (const [side, originX, fraction] of [
+        ["left", inset, 0.22],
+        ["right", box.width - inset, 0.78],
+      ] as const) {
+        const dx = field.left - box.left + field.width * fraction - originX;
+        const dy = targetY - inset;
+        card.style.setProperty(
+          `--beam-${side}-angle`,
+          `${(-Math.atan2(dx, dy) * 180) / Math.PI}deg`,
+        );
+        card.style.setProperty(
+          `--beam-${side}-scale`,
+          String(Math.hypot(dx, dy) / (length * focus)),
+        );
+      }
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(card);
+    return () => observer.disconnect();
+  }, [illuminated, desktop]);
   const heading = expired ? "Войдите снова" : "С возвращением.";
   return (
     <section
@@ -335,8 +336,10 @@ export function AuthPanel({
         </span>
       </div>
       <div
+        ref={cardRef}
         className="auth-login-content"
         data-active-field={activeField}
+        data-illuminated={illuminated}
         data-error={Boolean(error)}
         style={
           desktop
@@ -422,25 +425,17 @@ export function AuthPanel({
           )}
           <button type="submit" className="primary auth-submit" disabled={busy}>
             <span>{busy ? "Входим…" : "Войти в кабинет"}</span>
-            {busy ? (
-              <span className="auth-spinner" aria-hidden="true" />
-            ) : (
-              <ArrowRight size={20} aria-hidden="true" />
-            )}
+            {busy ? <span className="auth-spinner" aria-hidden="true" /> : null}
           </button>
         </form>
         <p className="auth-credentials-note">
           <LockKey size={15} /> Используйте доступ, выданный командой проекта.
         </p>
       </div>
-      <div className="auth-panel-bottom">
-        <span>Конкурсный прототип</span>
-        <p>
-          Все данные вымышлены.
-          <br />
-          Демодоступы передаются отдельно.
-        </p>
-      </div>
+      <footer className="auth-panel-bottom">
+        <p>Конкурсный прототип. Все данные вымышлены.</p>
+        <p>Демодоступы передаются отдельно.</p>
+      </footer>
     </section>
   );
 }

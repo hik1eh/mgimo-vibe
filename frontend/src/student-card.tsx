@@ -97,7 +97,10 @@ export default function StudentCard({
     const texture = new TextureLoader().load(
       coverUrl,
       () => {
-        if (!disposed) controller.current?.draw();
+        if (!disposed) {
+          renderer.domElement.dataset.ready = "true";
+          controller.current?.draw();
+        }
       },
       undefined,
       () => {
