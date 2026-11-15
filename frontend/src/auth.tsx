@@ -15,6 +15,10 @@ import { AUTH_MOTION } from "./auth-motion";
 import campusExterior from "./assets/campus-exterior.webp";
 import campusLibrary from "./assets/campus-library.webp";
 import campusAtrium from "./assets/campus-atrium.webp";
+import campusStudyGroup from "./assets/campus-study-group.webp";
+import campusComputerLab from "./assets/campus-computer-lab.webp";
+import campusSeminar from "./assets/campus-seminar.webp";
+import campusCafe from "./assets/campus-cafe.webp";
 import authLight from "./assets/auth-light.webp";
 import "./auth.css";
 
@@ -27,16 +31,36 @@ const campus = [
     alt: "Светлый корпус вымышленного университета с колоннадой и берёзовой аллеей",
   },
   {
+    image: campusStudyGroup,
+    detail: "Совместная учёба",
+    alt: "Трое вымышленных взрослых студентов обсуждают учебный проект в светлой библиотеке кампуса",
+  },
+  {
     image: campusLibrary,
     title: "Пространство для открытий",
     detail: "Университетская библиотека",
     alt: "Читальный зал вымышленного кампуса: каменные арки, книжные полки и синие кресла",
   },
   {
+    image: campusComputerLab,
+    detail: "Компьютерная лаборатория",
+    alt: "Двое вымышленных взрослых студентов работают над проектом в компьютерной лаборатории университета",
+  },
+  {
     image: campusAtrium,
     title: "Всё начинается здесь",
     detail: "Главный атриум",
     alt: "Светлый атриум вымышленного университета с галереями и лестницами",
+  },
+  {
+    image: campusSeminar,
+    detail: "Учебный семинар",
+    alt: "Вымышленные взрослые студенты обсуждают идеи на семинаре в светлой университетской аудитории",
+  },
+  {
+    image: campusCafe,
+    detail: "Университетское кафе",
+    alt: "Четверо вымышленных взрослых студентов общаются за кофе в университетском атриуме",
   },
 ];
 
@@ -59,7 +83,40 @@ function CampusCarousel({
   running: boolean;
   reduced: boolean;
 }) {
-  const photos = [...campus, campus[0]];
+  const [photoIndexes, setPhotoIndexes] = useState([0, 1, 2, 3]);
+  const currentIndexes = useRef(photoIndexes);
+  const nextPhoto = useRef(4);
+  const preloaded = useRef<HTMLImageElement[]>([]);
+  useEffect(() => {
+    preloaded.current = campus.map((photo) => {
+      const image = new Image();
+      image.src = photo.image;
+      void image.decode().catch(() => {});
+      return image;
+    });
+    return () => {
+      preloaded.current = [];
+    };
+  }, []);
+  function advancePhoto(slot: number) {
+    for (let offset = 0; offset < campus.length; offset++) {
+      const candidate = (nextPhoto.current + offset) % campus.length;
+      const image = preloaded.current[candidate];
+      if (
+        currentIndexes.current.includes(candidate) ||
+        !image?.complete ||
+        !image.naturalWidth
+      )
+        continue;
+      const updated = currentIndexes.current.map((index, position) =>
+        position === slot ? candidate : index,
+      );
+      currentIndexes.current = updated;
+      nextPhoto.current = (candidate + 1) % campus.length;
+      setPhotoIndexes(updated);
+      return;
+    }
+  }
   return (
     <section className="auth-carousel" aria-label={campus[0].detail}>
       <div
@@ -67,27 +124,32 @@ function CampusCarousel({
         data-reduced={reduced || undefined}
         data-running={running}
       >
-        {photos.map((photo, index) => (
-          <figure
-            className="auth-photo-card"
-            key={`${photo.image}-${index}`}
-            data-index={index}
-            aria-hidden={index >= campus.length || undefined}
-            style={
-              {
-                "--card-phase": `${(-index * AUTH_MOTION.carouselLoopSeconds) / photos.length}s`,
-              } as CSSProperties
-            }
-          >
-            <img
-              src={photo.image}
-              alt={photo.alt}
-              width="1536"
-              height="1024"
-              decoding="async"
-            />
-          </figure>
-        ))}
+        {photoIndexes.map((photoIndex, index) => {
+          const photo = campus[photoIndex];
+          return (
+            <figure
+              className="auth-photo-card"
+              key={index}
+              data-index={index}
+              onAnimationIteration={(event) => {
+                if (event.target === event.currentTarget) advancePhoto(index);
+              }}
+              style={
+                {
+                  "--card-phase": `${(-index * AUTH_MOTION.carouselLoopSeconds) / photoIndexes.length}s`,
+                } as CSSProperties
+              }
+            >
+              <img
+                src={photo.image}
+                alt={photo.alt}
+                width="1536"
+                height="1024"
+                decoding="async"
+              />
+            </figure>
+          );
+        })}
       </div>
     </section>
   );

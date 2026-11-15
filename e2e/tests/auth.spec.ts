@@ -298,6 +298,7 @@ test("auth motion has no pause control, continues on hover and respects reduced 
   await page.goto("/");
   const canvas = page.locator("canvas[data-graduation-cap]");
   await expect(canvas).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
   expect(
     await page
       .locator(".auth-shell")
@@ -338,6 +339,12 @@ test("auth motion has no pause control, continues on hover and respects reduced 
     "data-running",
     "false",
   );
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
   const paused = await canvas.screenshot();
   await page.waitForTimeout(400);
   expect((await canvas.screenshot()).equals(paused)).toBe(true);
@@ -354,6 +361,58 @@ test("auth motion has no pause control, continues on hover and respects reduced 
     "true",
   );
   await expect(page.locator(".auth-carousel button")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("all seven campus photos cycle through four persistent slots", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const loaded = new Set<string>();
+  const errors: string[] = [];
+  observeErrors(page, errors);
+  page.on("response", (response) => {
+    const path = new URL(response.url()).pathname;
+    if (path.includes("/campus-") && path.endsWith(".webp") && response.ok())
+      loaded.add(path);
+  });
+  await page.goto("/");
+  const cards = page.locator(".auth-photo-card");
+  await expect(cards).toHaveCount(4);
+  await expect.poll(() => loaded.size).toBe(7);
+  const result = await cards.evaluateAll(async (original) => {
+    const stage = original[0].parentElement!;
+    const seen = new Set<string>();
+    let complete = false;
+    const collect = () => {
+      for (const image of stage.querySelectorAll("img"))
+        seen.add(image.getAttribute("src")!);
+      complete = seen.size === 7;
+    };
+    const observer = new MutationObserver(collect);
+    observer.observe(stage, {
+      attributes: true,
+      subtree: true,
+      attributeFilter: ["src"],
+    });
+    collect();
+    for (const card of original)
+      for (const animation of card.getAnimations())
+        animation.updatePlaybackRate(12);
+    const started = performance.now();
+    while (!complete && performance.now() - started < 6000)
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    observer.disconnect();
+    return {
+      photos: seen.size,
+      slots: stage.querySelectorAll("figure").length,
+      persistent: original.every(
+        (card) => card.isConnected && card.parentElement === stage,
+      ),
+    };
+  });
+  expect(result).toEqual({ photos: 7, slots: 4, persistent: true });
   expect(errors).toEqual([]);
 });
 
