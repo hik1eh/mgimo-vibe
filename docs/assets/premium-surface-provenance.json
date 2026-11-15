@@ -1,0 +1,15 @@
+{
+  "tool": "built-in image_gen",
+  "mode": "generate",
+  "transparent_background": false,
+  "asset": "frontend/src/assets/premium-surface.webp",
+  "dimensions": [
+    1774,
+    887
+  ],
+  "bytes": 8896,
+  "conversion": "RGB WebP quality 88, method 6, no resize",
+  "source": "C:/Users/egork/.codex/generated_images/01a1e0b9-a7ff-7bb0-ac63-ffa9ce53e781/exec-a355b448-e7d5-4e13-adb5-c3de30f0ea40.png",
+  "raw": "artifacts/premium-design/premium-surface.png",
+  "prompt": "Use case: stylized-concept. Asset type: subtle raster background surface for a premium university web application. Create only an abstract softly illuminated icy-blue and pearl-white surface, no interface. Very light frosted opalescent paper/glass feeling, broad smooth barely-visible cloud-like pools of pale glacier blue and milky white light, calm and refined, restrained modern academic atmosphere. Overall luminance very high so dark navy text remains legible everywhere. A balanced very low-contrast composition, no strong focal point, no recognizable objects, no grain, no sharp edges or lines, no visible pattern, no dramatic folds or waves, no saturated cyan, no dark regions. NO UI, NO cards, NO text, NO logos, NO people, NO borders. Opaque edge-to-edge bitmap, wide landscape 2:1 composition, ideally 2048x1024 or at least 1920 pixels wide."
+}

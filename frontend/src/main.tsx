@@ -46,6 +46,7 @@ import { submissionKey } from "./ids";
 import { SignOut } from "@phosphor-icons/react";
 import { SectionBanner } from "./section-banner";
 import "./cabinet-header.css";
+import "./premium.css";
 
 function RouteFocus() {
   const { pathname } = useLocation();
@@ -671,6 +672,7 @@ function Notifications() {
 
 function Cabinet({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [error, setError] = useState("");
+  const [input, setInput] = useState("pointer");
   const staff = user.role === "staff";
   async function logout() {
     try {
@@ -681,14 +683,23 @@ function Cabinet({ user, onLogout }: { user: User; onLogout: () => void }) {
     }
   }
   return (
-    <>
+    <div
+      className="cabinet-app"
+      data-input={input}
+      onKeyDownCapture={() => setInput("keyboard")}
+      onPointerDownCapture={() => setInput("pointer")}
+    >
       <a className="skip-link" href="#main">
         К содержимому
       </a>
       <header
         className={`cabinet-header ${staff ? "staff-header" : "student-header"}`}
       >
-        <Link className="brand" to={staff ? "/requests" : "/today"}>
+        <Link
+          className="brand"
+          to={staff ? "/requests" : "/today"}
+          aria-label="Цифровой деканат. Университет Северного кампуса"
+        >
           <span className="brand-mark">СК</span>
           <span className="brand-title">
             Цифровой
@@ -822,7 +833,7 @@ function Cabinet({ user, onLogout }: { user: User; onLogout: () => void }) {
         <span>Университет Северного кампуса</span>
         <span>Демонстрационный сервис · Итерация 04</span>
       </footer>
-    </>
+    </div>
   );
 }
 function DetailRoute({ user }: { user: User }) {

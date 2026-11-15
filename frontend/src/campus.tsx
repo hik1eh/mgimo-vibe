@@ -6,7 +6,13 @@ import { addDays, campusDay, campusTime, dayLabel } from "./study-dates";
 import { ErrorBox, useResource } from "./ui";
 import { type Announcement, audienceLabel } from "./campus-types";
 import { LessonCard } from "./study";
-import { Bell, User as UserIcon } from "@phosphor-icons/react";
+import {
+  Bell,
+  User as UserIcon,
+  CalendarBlank,
+  ArrowLeft,
+  ArrowRight,
+} from "@phosphor-icons/react";
 
 export function StudentAccount() {
   const { data } = useResource<Notice[]>("/notifications", true);
@@ -70,13 +76,17 @@ export function LinkedLesson({
 function AnnouncementCard({
   item,
   full = false,
+  compact = false,
 }: {
   item: Announcement;
   full?: boolean;
+  compact?: boolean;
 }) {
-  const Heading = full ? "h1" : "h2";
+  const Heading = full ? "h1" : compact ? "h3" : "h2";
   return (
-    <article className={`announcement-card ${item.pinned ? "pinned" : ""}`}>
+    <article
+      className={`announcement-card ${item.pinned ? "pinned" : ""} ${compact ? "feed-card" : ""}`}
+    >
       <div className="announcement-meta">
         <span>{audienceLabel[item.audience]}</span>
         {item.pinned && <span>Закреплено</span>}
@@ -88,14 +98,32 @@ function AnnouncementCard({
           <Link to={`/announcements/${item.id}`}>{item.title}</Link>
         )}
       </Heading>
-      <p className="announcement-text">{item.text}</p>
-      {item.lesson && <LinkedLesson lesson={item.lesson} />}
-      <small>
-        {item.source}
-        {item.published_at &&
-          ` · ${dayLabel(campusDay(item.published_at), true)}`}
-      </small>
-      {!full && (
+      {compact && item.lesson && (
+        <p className="feed-lesson">
+          {item.lesson.status === "cancelled" ? (
+            "Занятие отменено"
+          ) : (
+            <>
+              Аудитория <strong>{item.lesson.room}</strong>
+            </>
+          )}
+        </p>
+      )}
+      {!compact && <p className="announcement-text">{item.text}</p>}
+      {!compact && item.lesson && <LinkedLesson lesson={item.lesson} />}
+      {!compact && (
+        <small>
+          {item.source}
+          {item.published_at &&
+            ` · ${dayLabel(campusDay(item.published_at), true)}`}
+        </small>
+      )}
+      {compact && item.lesson && (
+        <Link className="feed-open" to={`/schedule/${item.lesson.id}`}>
+          Открыть занятие <ArrowRight aria-hidden="true" />
+        </Link>
+      )}
+      {!full && (!compact || !item.lesson) && (
         <Link className="announcement-open" to={`/announcements/${item.id}`}>
           Подробнее ↗
         </Link>
@@ -140,28 +168,7 @@ function Feed({ rows }: { rows: Announcement[] }) {
   }
   return (
     <section className="feed-region" aria-label="Адресные объявления">
-      <div className="section-heading">
-        <h2>На связи с кампусом</h2>
-        <div className="feed-actions">
-          <Link to="/announcements">Все объявления</Link>
-          <button
-            className="secondary square"
-            disabled={!edges.prev}
-            aria-label="Предыдущие объявления"
-            onClick={() => scroll(-1)}
-          >
-            ←
-          </button>
-          <button
-            className="secondary square"
-            disabled={!edges.next}
-            aria-label="Следующие объявления"
-            onClick={() => scroll(1)}
-          >
-            →
-          </button>
-        </div>
-      </div>
+      <h2>Объявления кампуса</h2>
       {rows.length ? (
         <div
           className="announcement-carousel"
@@ -180,12 +187,31 @@ function Feed({ rows }: { rows: Announcement[] }) {
           }}
         >
           {rows.map((row) => (
-            <AnnouncementCard key={row.id} item={row} />
+            <AnnouncementCard key={row.id} item={row} compact />
           ))}
         </div>
       ) : (
         <div className="panel muted">Новых объявлений нет.</div>
       )}
+      <div className="feed-actions">
+        <Link to="/announcements">Все объявления</Link>
+        <button
+          className="secondary square"
+          disabled={!edges.prev}
+          aria-label="Предыдущие объявления"
+          onClick={() => scroll(-1)}
+        >
+          <ArrowLeft aria-hidden="true" />
+        </button>
+        <button
+          className="secondary square"
+          disabled={!edges.next}
+          aria-label="Следующие объявления"
+          onClick={() => scroll(1)}
+        >
+          <ArrowRight aria-hidden="true" />
+        </button>
+      </div>
     </section>
   );
 }
@@ -202,7 +228,7 @@ function HomeStudy({ context }: { context: StudyContext }) {
       row.status !== "cancelled" && new Date(row.ends_at).getTime() > instant,
   );
   return (
-    <section className="home-study">
+    <section className="home-study panel">
       <div className="section-heading">
         <h2>Ближайшее занятие</h2>
         <Link to="/schedule">Расписание →</Link>
@@ -228,7 +254,7 @@ function HomeStudy({ context }: { context: StudyContext }) {
             />
           </>
         ) : (
-          <div className="panel empty">
+          <div className="empty">
             <h3>Ближайших занятий нет</h3>
             <p>
               Сегодня занятия завершены или не запланированы. Можно открыть
@@ -249,17 +275,9 @@ export function TodayPage({ user }: { user: User }) {
   const tasks =
     requests.data?.filter((r) => ["needs_info", "ready"].includes(r.status)) ||
     [];
+  const credit = results.data?.summary.next_credit;
   return (
-    <>
-      <div className="section-intro home-title">
-        <div>
-          <span className="eyebrow">{user.group} · СЕВЕРНЫЙ КАМПУС</span>
-          <p>{user.full_name}, всё важное — в вашем кабинете.</p>
-        </div>
-        <Link className="primary" to="/requests/new">
-          Заказать справку ＋
-        </Link>
-      </div>
+    <div className="today-dashboard">
       <ErrorBox error={feed.error} />
       {feed.error && (
         <button className="secondary" onClick={feed.reload}>
@@ -277,78 +295,92 @@ export function TodayPage({ user }: { user: User }) {
           Повторить загрузку календаря
         </button>
       )}
+      <div className="home-grid">
+        {context.data && <HomeStudy context={context.data} />}
+        <div className="home-sidebar">
+          <section className="panel home-credit">
+            <h2>Ближайший зачёт</h2>
+            <ErrorBox error={results.error} />
+            {results.error && (
+              <button className="text-button" onClick={results.reload}>
+                Повторить загрузку успеваемости
+              </button>
+            )}
+            {!results.data && !results.error && (
+              <p role="status">Загружаем результаты…</p>
+            )}
+            {credit ? (
+              <>
+                <p className="credit-date">
+                  <CalendarBlank size={27} aria-hidden="true" />
+                  <strong>
+                    {dayLabel(campusDay(credit.control_at), true)},{" "}
+                    {campusTime(credit.control_at)}
+                  </strong>
+                </p>
+                <p className="credit-subject">{credit.subject}</p>
+              </>
+            ) : (
+              results.data && <p className="muted">Предстоящих зачётов нет</p>
+            )}
+            <Link className="editorial-link" to="/academic-results">
+              Открыть оценки <ArrowRight aria-hidden="true" />
+            </Link>
+          </section>
+          <section className="panel certificate-card">
+            <h2>Справка об обучении</h2>
+            <p className="muted">Электронная выдача · до 2 рабочих дней</p>
+            <Link className="primary" to="/requests/new">
+              Заказать справку ＋
+            </Link>
+          </section>
+        </div>
+      </div>
+      <section className="home-attention" aria-label="Требует внимания">
+        <ErrorBox error={requests.error} />
+        {requests.error && (
+          <button className="secondary" onClick={requests.reload}>
+            Повторить
+          </button>
+        )}
+        {!requests.data && !requests.error && <p>Загружаем заявки…</p>}
+        {tasks.map((req) => (
+          <Link
+            key={req.id}
+            className={`attention-card ${req.status}`}
+            to={`/requests/${req.id}`}
+          >
+            <span className="eyebrow">{req.number}</span>
+            <h3>
+              {req.status === "needs_info"
+                ? "Ответьте на уточнение"
+                : "Ваша справка готова"}
+            </h3>
+            <p>
+              {req.status === "needs_info"
+                ? "Сотрудник ждёт ответа в карточке заявки."
+                : "Откройте заявку и скачайте демонстрационный PDF."}
+            </p>
+            <span>Открыть заявку →</span>
+          </Link>
+        ))}
+        {requests.data && !tasks.length && (
+          <div className="dashboard-status">
+            <strong>Срочных действий по заявкам нет</strong>
+            <p className="muted">Изменения статуса появятся в уведомлениях.</p>
+          </div>
+        )}
+      </section>
+      <p className="dashboard-greeting">
+        {user.full_name} · {user.group} · {user.faculty}
+      </p>
       {context.data && (
         <p className="study-caption">
           Демонстрационный учебный день: {dayLabel(context.data.today)}. Все
           данные вымышлены.
         </p>
       )}
-      <div className="home-grid">
-        {context.data && <HomeStudy context={context.data} />}
-        <section>
-          <div className="section-heading">
-            <h2>Требует внимания</h2>
-            <Link to="/notifications">Уведомления →</Link>
-          </div>
-          <ErrorBox error={requests.error} />
-          {requests.error && (
-            <button className="secondary" onClick={requests.reload}>
-              Повторить
-            </button>
-          )}
-          {!requests.data && !requests.error && <p>Загружаем заявки…</p>}
-          {tasks.map((req) => (
-            <Link
-              key={req.id}
-              className={`attention-card ${req.status}`}
-              to={`/requests/${req.id}`}
-            >
-              <span className="eyebrow">{req.number}</span>
-              <h3>
-                {req.status === "needs_info"
-                  ? "Ответьте на уточнение"
-                  : "Ваша справка готова"}
-              </h3>
-              <p>
-                {req.status === "needs_info"
-                  ? "Сотрудник ждёт ответа в карточке заявки."
-                  : "Откройте заявку и скачайте демонстрационный PDF."}
-              </p>
-              <span>Открыть заявку →</span>
-            </Link>
-          ))}
-          {requests.data && !tasks.length && (
-            <div className="panel">
-              <h3>Срочных действий по заявкам нет</h3>
-              <p className="muted">
-                Изменения статуса появятся в уведомлениях.
-              </p>
-            </div>
-          )}
-          <ErrorBox error={results.error} />
-          {results.error && (
-            <button className="secondary" onClick={results.reload}>
-              Повторить загрузку успеваемости
-            </button>
-          )}
-          {results.data?.summary.next_credit && (
-            <Link
-              className="attention-card next-credit-attention"
-              to="/academic-results"
-            >
-              <span className="eyebrow">ПРЕДСТОИТ ЗАЧЁТ</span>
-              <h3>{results.data.summary.next_credit.subject}</h3>
-              <p>
-                {dayLabel(
-                  campusDay(results.data.summary.next_credit.control_at),
-                )}
-              </p>
-              <span>Открыть успеваемость →</span>
-            </Link>
-          )}
-        </section>
-      </div>
-    </>
+    </div>
   );
 }
 
