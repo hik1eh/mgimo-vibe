@@ -47,6 +47,7 @@ import { SignOut } from "@phosphor-icons/react";
 import { SectionBanner } from "./section-banner";
 import "./cabinet-header.css";
 import "./premium.css";
+import "./student-redesign.css";
 
 function RouteFocus() {
   const { pathname } = useLocation();
@@ -671,6 +672,7 @@ function Notifications() {
 }
 
 function Cabinet({ user, onLogout }: { user: User; onLogout: () => void }) {
+  const { pathname } = useLocation();
   const [error, setError] = useState("");
   const [input, setInput] = useState("pointer");
   const staff = user.role === "staff";
@@ -685,6 +687,11 @@ function Cabinet({ user, onLogout }: { user: User; onLogout: () => void }) {
   return (
     <div
       className="cabinet-app"
+      data-student-screen={
+        !staff && (pathname === "/today" || pathname === "/schedule")
+          ? pathname.slice(1)
+          : undefined
+      }
       data-input={input}
       onKeyDownCapture={() => setInput("keyboard")}
       onPointerDownCapture={() => setInput("pointer")}

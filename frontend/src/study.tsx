@@ -2,22 +2,14 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { type User } from "./api";
 import { ErrorBox, useResource } from "./ui";
 import {
-  type StudyContext,
   type Lesson,
   type LessonSnapshot,
   type AcademicPayload,
   type AcademicResult,
 } from "./study-types";
-import {
-  addDays,
-  monday,
-  validDay,
-  campusDay,
-  campusTime,
-  dayLabel,
-  weekdayLabel,
-} from "./study-dates";
+import { campusDay, campusTime, dayLabel } from "./study-dates";
 import "./study.css";
+import { StudentSchedule } from "./schedule-view";
 
 function ResourceError({
   error,
@@ -151,190 +143,7 @@ export function LessonCard({
 }
 
 export function SchedulePage({ user }: { user: User }) {
-  const context = useResource<StudyContext>("/study-context");
-  return (
-    <>
-      <div className="section-intro">
-        <span className="eyebrow">УЧЕБНАЯ НЕДЕЛЯ</span>
-        <p>
-          {user.group} · {user.faculty}
-        </p>
-      </div>
-      <ResourceError error={context.error} reload={context.reload} />
-      {!context.data && !context.error && (
-        <p role="status">Загружаем учебный календарь…</p>
-      )}
-      {context.data && <ScheduleContent context={context.data} />}
-    </>
-  );
-}
-function ScheduleContent({ context }: { context: StudyContext }) {
-  const [params, setParams] = useSearchParams();
-  const rawDate = params.get("date");
-  const selected = validDay(rawDate) ? rawDate : context.today;
-  const view = params.get("view") === "week" ? "week" : "day";
-  const start = view === "week" ? monday(selected) : selected;
-  const end = view === "week" ? addDays(start, 6) : start;
-  const { data, error, reload } = useResource<Lesson[]>(
-    `/schedule?start=${start}&end=${end}`,
-    true,
-  );
-  const days = Array.from({ length: 7 }, (_, i) =>
-    addDays(monday(selected), i),
-  );
-  const choose = (day: string, mode = view) =>
-    setParams({ view: mode, date: day });
-  const lessonsFor = (day: string) =>
-    (data || []).filter((lesson) => campusDay(lesson.starts_at) === day);
-  return (
-    <>
-      <DemoDates day={context.today} />
-      <section
-        className="schedule-controls panel"
-        aria-label="Настройка расписания"
-      >
-        <div className="segmented">
-          <button
-            aria-pressed={view === "day"}
-            className={view === "day" ? "selected" : ""}
-            onClick={() => choose(context.today, "day")}
-          >
-            {selected === context.today ? "Сегодня" : "День"}
-          </button>
-          <button
-            aria-pressed={view === "week"}
-            className={view === "week" ? "selected" : ""}
-            onClick={() => choose(selected, "week")}
-          >
-            Неделя
-          </button>
-        </div>
-        <div className="date-navigation">
-          <button
-            className="secondary square"
-            aria-label={
-              view === "week" ? "Предыдущая неделя" : "Предыдущий день"
-            }
-            onClick={() => choose(addDays(selected, view === "week" ? -7 : -1))}
-          >
-            ←
-          </button>
-          <label>
-            Дата
-            <input
-              aria-label="Дата расписания"
-              type="date"
-              value={selected}
-              onChange={(e) => {
-                if (validDay(e.target.value)) choose(e.target.value);
-              }}
-            />
-          </label>
-          <button
-            className="secondary square"
-            aria-label={view === "week" ? "Следующая неделя" : "Следующий день"}
-            onClick={() => choose(addDays(selected, view === "week" ? 7 : 1))}
-          >
-            →
-          </button>
-        </div>
-        <button
-          className="text-button"
-          onClick={() => choose(context.demo_day, "day")}
-        >
-          Демонстрационный день
-        </button>
-      </section>
-      <div className="section-heading schedule-heading">
-        <h2>
-          {view === "week"
-            ? `${dayLabel(start, true)} — ${dayLabel(end, true)}`
-            : `${selected === context.today ? "Сегодня · " : ""}${dayLabel(selected)}`}
-        </h2>
-        <button className="text-button" onClick={reload}>
-          Обновить
-        </button>
-      </div>
-      <ResourceError error={error} reload={reload} />
-      {!data && !error && <p role="status">Загружаем занятия…</p>}
-      {data && (
-        <>
-          {view === "week" && (
-            <>
-              <div className="week-grid">
-                {days.map((day) => (
-                  <section
-                    className={`week-day ${day === context.today ? "is-today" : ""}`}
-                    key={day}
-                    aria-label={dayLabel(day)}
-                  >
-                    <h3>
-                      {weekdayLabel(day)}
-                      <span>{dayLabel(day, true)}</span>
-                    </h3>
-                    {lessonsFor(day).length ? (
-                      lessonsFor(day).map((lesson) => (
-                        <LessonCard
-                          key={lesson.id}
-                          lesson={lesson}
-                          query={params.toString()}
-                        />
-                      ))
-                    ) : (
-                      <p className="week-empty">Занятий нет</p>
-                    )}
-                  </section>
-                ))}
-              </div>
-              <div
-                className="mobile-day-tabs"
-                role="group"
-                aria-label="Дни недели"
-              >
-                {days.map((day) => (
-                  <button
-                    key={day}
-                    aria-pressed={day === selected}
-                    className={day === selected ? "selected" : ""}
-                    onClick={() => choose(day)}
-                  >
-                    <span>{weekdayLabel(day)}</span>
-                    <strong>{day.slice(-2)}</strong>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-          <div
-            className={
-              view === "week"
-                ? "daily-lessons mobile-week-lessons"
-                : "daily-lessons"
-            }
-          >
-            {lessonsFor(selected).length ? (
-              lessonsFor(selected).map((lesson) => (
-                <LessonCard
-                  key={lesson.id}
-                  lesson={lesson}
-                  query={params.toString()}
-                />
-              ))
-            ) : (
-              <div className="panel empty empty-day">
-                <span aria-hidden>☀</span>
-                <h3>В этот день занятий нет</h3>
-                <p>
-                  {dayLabel(selected)} свободен от занятий в расписании вашей
-                  группы. Выберите другой день или откройте неделю.
-                </p>
-              </div>
-            )}
-          </div>
-        </>
-      )}
-    </>
-  );
+  return <StudentSchedule user={user} />;
 }
 
 export function LessonPage() {

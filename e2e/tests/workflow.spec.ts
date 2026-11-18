@@ -158,10 +158,14 @@ test("staff UI changes lesson, publishes, edits and withdraws targeted announcem
   });
   const a = await aContext.newPage();
   await login(a);
-  const card = a.locator(".announcement-card").filter({ hasText: title });
+  const card = a.locator(".news-tile").filter({ hasText: title });
   await card.scrollIntoViewIfNeeded();
   await expect(card).toContainText("412");
-  await card.getByRole("link", { name: /^Открыть занятие/ }).click();
+  await card.click();
+  await a
+    .getByRole("dialog")
+    .getByRole("link", { name: /^Открыть занятие/ })
+    .click();
   await expect(a.locator(".room-number")).toHaveText("412");
   await expect(a.locator(".lesson-change")).toContainText("305");
   const bContext = await browser.newContext({

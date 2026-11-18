@@ -61,11 +61,22 @@ function TodayDate() {
 export function SectionBanner() {
   const { pathname } = useLocation();
   const banner = banners[pathname as keyof typeof banners];
+  const entry = useRef({ path: pathname, shown: false, animate: false });
+  if (entry.current.path !== pathname) {
+    entry.current = {
+      path: pathname,
+      shown: entry.current.shown,
+      animate: Boolean(banner) && entry.current.shown,
+    };
+  }
+  if (banner) entry.current.shown = true;
   if (!banner) return null;
+  const study = pathname === "/today" || pathname === "/schedule";
   return (
     <section
-      className="section-banner"
+      className={`section-banner ${study ? "study-banner" : ""}`}
       data-section={pathname}
+      data-banner-entry={(study && entry.current.animate) || undefined}
       aria-labelledby="section-title"
     >
       <BannerPhoto
@@ -73,7 +84,7 @@ export function SectionBanner() {
         photo={banner.photo}
         position={banner.position}
       />
-      <div className="section-banner__body">
+      <div key={pathname} className="section-banner__body">
         <p className="section-banner__eyebrow">Светлый кампус</p>
         <h1 id="section-title">{banner.title}</h1>
         {pathname === "/today" && <TodayDate />}

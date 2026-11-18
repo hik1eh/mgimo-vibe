@@ -85,7 +85,7 @@ test("keyboard feed controls, visible focus, empty day and semester", async ({
   await skip.focus();
   await page.keyboard.press("Enter");
   await expect(page.locator("#main")).toBeFocused();
-  const feed = page.locator(".announcement-carousel");
+  const feed = page.locator(".news-mobile");
   await feed.focus();
   expect(
     await feed.evaluate((el) => getComputedStyle(el).outlineStyle),
@@ -94,7 +94,9 @@ test("keyboard feed controls, visible focus, empty day and semester", async ({
   await expect
     .poll(() => feed.evaluate((el) => el.scrollLeft))
     .toBeGreaterThan(10);
-  await page.getByRole("button", { name: "Предыдущие объявления" }).click();
+  await page
+    .getByRole("button", { name: "Предыдущее объявление", exact: true })
+    .click();
   await expect
     .poll(() => feed.evaluate((el) => el.scrollLeft))
     .toBeLessThanOrEqual(8);
@@ -119,16 +121,20 @@ test("keyboard feed controls, visible focus, empty day and semester", async ({
   await expect
     .poll(() => feed.evaluate((el) => el.scrollLeft))
     .toBeGreaterThan(10);
+  await touch.send("Emulation.setTouchEmulationEnabled", { enabled: false });
   await touch.detach();
   await feed.evaluate((el) =>
     el.scrollTo({ left: el.scrollWidth, behavior: "instant" }),
   );
-  await expect(
-    page.getByRole("button", { name: "Следующие объявления" }),
-  ).toBeDisabled();
+  const total = await page.locator(".news-tile").count();
+  await expect(page.locator(".news-counter")).toHaveText(`${total} / ${total}`);
+  await page
+    .getByRole("button", { name: "Следующее объявление", exact: true })
+    .click();
+  await expect(page.locator(".news-counter")).toHaveText(`1 / ${total}`);
   await page.goto("/schedule?view=day&date=2026-11-15");
   await expect(
-    page.getByText("В этот день занятий нет", { exact: true }),
+    page.getByRole("heading", { name: "Нет занятий", exact: true }),
   ).toBeVisible();
   await page.goto("/academic-results");
   await expect(

@@ -1,0 +1,389 @@
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
+import { Link } from "react-router-dom";
+import { Dialog } from "@base-ui/react/dialog";
+import {
+  ArrowLeft,
+  ArrowRight,
+  ArrowUpRight,
+  BookOpen,
+  GraduationCap,
+  UsersThree,
+  X,
+} from "@phosphor-icons/react";
+import type { Announcement } from "./campus-types";
+import { campusDay, campusTime, dayLabel } from "./study-dates";
+import { lessonPath } from "./schedule-model";
+import { ErrorBox, useResource } from "./ui";
+
+const source = {
+  university: { label: "Вуз", Icon: BookOpen },
+  faculty: { label: "Факультет", Icon: GraduationCap },
+  group: { label: "Группа", Icon: UsersThree },
+};
+const wrap = (index: number, length: number) => (index + length) % length;
+
+function useCardLayout() {
+  const read = () =>
+    innerWidth < 720 ? "mobile" : innerWidth < 1180 ? "three" : "five";
+  const [layout, setLayout] = useState(read);
+  useEffect(() => {
+    const update = () => setLayout(read());
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+  return layout;
+}
+
+export function announcementFact(item: Announcement) {
+  if (item.lesson) {
+    const lesson = item.lesson,
+      old = lesson.changes.at(-1)?.before.room;
+    return `${campusTime(lesson.starts_at)} · ${lesson.status === "cancelled" ? "Отменено" : old && old !== lesson.room ? `${old} → ${lesson.room}` : `ауд. ${lesson.room}`}`;
+  }
+  const hours = item.text.match(
+    /\b\d{1,2}:\d{2}\s*(?:[–—-]|до)\s*\d{1,2}:\d{2}\b/u,
+  )?.[0];
+  const date = item.text.match(
+    /\b\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)/u,
+  )?.[0];
+  return (
+    (hours ? `${date ? `${date} · ` : ""}${hours}` : "") ||
+    item.text.split(/\n/)[0] ||
+    (item.published_at
+      ? dayLabel(campusDay(item.published_at), true)
+      : "Объявление деканата")
+  );
+}
+
+function NewsDetails({
+  item,
+  close,
+}: {
+  item: Announcement;
+  close: () => void;
+}) {
+  const { data, error, reload } = useResource<Announcement>(
+    `/announcements/${item.id}`,
+    true,
+  );
+  return (
+    <>
+      <Dialog.Title className="news-dialog-title">
+        {data?.title || item.title}
+      </Dialog.Title>
+      <ErrorBox error={error} />
+      {error && (
+        <button className="secondary" onClick={reload}>
+          Повторить
+        </button>
+      )}
+      {!data && !error && <p role="status">Загружаем объявление…</p>}
+      {data && (
+        <>
+          <p className="news-dialog-source">
+            {source[data.audience].label} · {data.source}
+            {data.published_at
+              ? ` · ${dayLabel(campusDay(data.published_at), true)}`
+              : ""}
+          </p>
+          <Dialog.Description className="news-dialog-text">
+            {data.text}
+          </Dialog.Description>
+          {data.lesson && (
+            <section
+              className="news-lesson-context"
+              aria-label="Связанное занятие"
+            >
+              <h3>{data.lesson.subject}</h3>
+              <p>
+                {dayLabel(campusDay(data.lesson.starts_at), true)} ·{" "}
+                {campusTime(data.lesson.starts_at)}–
+                {campusTime(data.lesson.ends_at)}
+              </p>
+              <p>
+                {data.lesson.status === "cancelled"
+                  ? "Занятие отменено"
+                  : `${data.lesson.building} · аудитория ${data.lesson.room}`}
+              </p>
+              <Link
+                className="primary"
+                to={lessonPath(data.lesson.id)}
+                onClick={close}
+              >
+                Открыть занятие <ArrowRight aria-hidden="true" />
+              </Link>
+            </section>
+          )}
+        </>
+      )}
+    </>
+  );
+}
+
+export function NewsFeed({
+  rows,
+  group,
+}: {
+  rows: Announcement[];
+  group?: string | null;
+}) {
+  const news = useMemo(
+    () =>
+      rows
+        .filter((r) => r.status === "published")
+        .slice()
+        .sort(
+          (a, b) =>
+            Number(b.pinned) - Number(a.pinned) ||
+            Date.parse(b.published_at || "1970-01-01") -
+              Date.parse(a.published_at || "1970-01-01") ||
+            a.id - b.id,
+        ),
+    [rows],
+  );
+  const signature = news.map((item) => item.id).join(",");
+  const [activeId, setActiveId] = useState<number | null>(null);
+  const index = Math.max(
+    0,
+    news.findIndex((item) => item.id === activeId),
+  );
+  const indexRef = useRef(index);
+  indexRef.current = index;
+  const viewport = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement | null>(null);
+  const [selected, setSelected] = useState<Announcement | null>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const close = () => setOpen(false);
+    window.addEventListener("session-expired", close);
+    return () => window.removeEventListener("session-expired", close);
+  }, []);
+  const layout = useCardLayout(),
+    mobile = layout === "mobile";
+  const count = Math.min(news.length, layout === "five" ? 5 : 3);
+  const offsets =
+    count === 5
+      ? [-2, -1, 0, 1, 2]
+      : count === 4
+        ? [-2, -1, 0, 1]
+        : count === 3
+          ? [-1, 0, 1]
+          : count === 2
+            ? [0, 1]
+            : count === 1
+              ? [0]
+              : [];
+  const visible = mobile
+    ? news.map((item, i) => ({ item, offset: i - index }))
+    : offsets.map((offset) => ({
+        item: news[wrap(index + offset, news.length)],
+        offset,
+      }));
+  const weight = (offset: number) =>
+    Math.abs(offset) === 2 ? 0.76 : offset === 0 ? 1.19 : 0.9;
+
+  const revealMobile = (next: number, smooth: boolean) => {
+    const el = viewport.current,
+      tile = el?.querySelectorAll<HTMLElement>(".news-tile-shell")[next];
+    if (!el || !tile) return;
+    el.scrollTo({
+      left:
+        el.scrollLeft +
+        tile.getBoundingClientRect().left -
+        el.getBoundingClientRect().left -
+        (el.clientWidth - tile.offsetWidth) / 2,
+      behavior:
+        smooth && !matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "smooth"
+          : "instant",
+    });
+  };
+  useLayoutEffect(() => {
+    if (mobile && news.length) revealMobile(indexRef.current, false);
+  }, [mobile, signature]);
+  function move(delta: number) {
+    if (news.length < 2) return;
+    const next = wrap(indexRef.current + delta, news.length);
+    setActiveId(news[next].id);
+    if (mobile) revealMobile(next, true);
+  }
+  function scrolled() {
+    const el = viewport.current;
+    if (!mobile || !el || !news.length) return;
+    const center = el.getBoundingClientRect().left + el.clientWidth / 2;
+    const distances = [
+      ...el.querySelectorAll<HTMLElement>(".news-tile-shell"),
+    ].map((tile) =>
+      Math.abs(
+        tile.getBoundingClientRect().left + tile.offsetWidth / 2 - center,
+      ),
+    );
+    const nearest = distances.indexOf(Math.min(...distances));
+    if (news[nearest]) setActiveId(news[nearest].id);
+  }
+  return (
+    <section className="dean-feed" aria-labelledby="dean-feed-heading">
+      <div className="dean-feed-heading">
+        <h2 id="dean-feed-heading">Лента деканата</h2>
+        {group && <span className="feed-group">{group}</span>}
+        {news.length > 1 && (
+          <div className="news-controls">
+            <span
+              className="news-counter"
+              role="status"
+              aria-live="polite"
+              aria-label="Позиция объявления"
+            >
+              {index + 1} / {news.length}
+            </span>
+            <button
+              type="button"
+              className="secondary square"
+              aria-label="Предыдущее объявление"
+              onClick={() => move(-1)}
+            >
+              <ArrowLeft aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="secondary square"
+              aria-label="Следующее объявление"
+              onClick={() => move(1)}
+            >
+              <ArrowRight aria-hidden="true" />
+            </button>
+          </div>
+        )}
+      </div>
+      {!news.length ? (
+        <p className="feed-empty">Новых объявлений нет.</p>
+      ) : (
+        <div
+          ref={viewport}
+          className={`news-band ${mobile ? "news-mobile" : "news-grid"}`}
+          data-count={count}
+          style={
+            !mobile
+              ? {
+                  gridTemplateColumns: offsets
+                    .map((n) => `minmax(0, ${weight(n)}fr)`)
+                    .join(" "),
+                }
+              : undefined
+          }
+          tabIndex={0}
+          role="group"
+          aria-label="Объявления, используйте стрелки или прокрутку"
+          onScroll={scrolled}
+          onKeyDown={(event) => {
+            if (
+              event.target === event.currentTarget &&
+              ["ArrowLeft", "ArrowRight"].includes(event.key)
+            ) {
+              event.preventDefault();
+              move(event.key === "ArrowLeft" ? -1 : 1);
+            }
+          }}
+        >
+          {visible.map(({ item, offset }) => {
+            const { label, Icon } = source[item.audience];
+            const current = item.id === news[index]?.id;
+            return (
+              <div
+                key={item.id}
+                className="news-tile-shell"
+                data-distance={Math.abs(offset)}
+                style={
+                  {
+                    "--tile-offset": mobile
+                      ? "0px"
+                      : `${Math.abs(offset) === 2 ? 44 : offset === 0 ? 0 : 23}px`,
+                  } as CSSProperties
+                }
+              >
+                <button
+                  type="button"
+                  className="news-tile"
+                  data-active={current || undefined}
+                  aria-haspopup="dialog"
+                  aria-current={current ? "true" : undefined}
+                  onFocus={() => {
+                    if (mobile) {
+                      const i = news.findIndex((n) => n.id === item.id);
+                      setActiveId(item.id);
+                      revealMobile(i, false);
+                    }
+                  }}
+                  onClick={(event) => {
+                    trigger.current = event.currentTarget;
+                    setSelected(item);
+                    setOpen(true);
+                  }}
+                >
+                  <span className="news-source">
+                    <span className="news-source-icon">
+                      <Icon size={21} aria-hidden="true" />
+                    </span>
+                    {label}
+                    <ArrowUpRight
+                      className="news-open-indicator"
+                      size={15}
+                      aria-hidden="true"
+                    />
+                  </span>
+                  <span className="news-title">{item.title}</span>
+                  <span className="news-fact">{announcementFact(item)}</span>
+                  <span className="news-peek">
+                    {item.lesson
+                      ? `${item.lesson.subject} · ${item.lesson.building}`
+                      : item.text}
+                  </span>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <Link className="all-news-link" to="/announcements">
+        Все объявления <ArrowRight aria-hidden="true" />
+      </Link>
+      <Dialog.Root open={open} onOpenChange={setOpen}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="news-dialog-backdrop" />
+          <Dialog.Viewport className="news-dialog-viewport">
+            <Dialog.Popup
+              className="news-dialog"
+              finalFocus={() =>
+                trigger.current?.isConnected
+                  ? trigger.current
+                  : viewport.current
+              }
+            >
+              <Dialog.Close
+                className="news-dialog-close"
+                aria-label="Закрыть объявление"
+              >
+                <X size={21} aria-hidden="true" />
+                <span>Закрыть</span>
+              </Dialog.Close>
+              {selected && (
+                <NewsDetails
+                  key={selected.id}
+                  item={selected}
+                  close={() => setOpen(false)}
+                />
+              )}
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </section>
+  );
+}

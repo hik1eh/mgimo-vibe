@@ -89,9 +89,11 @@ test("section photos retain enough pixels for a 1440px HiDPI display", async ({
   try {
     const page = await context.newPage();
     await login(page);
-    for (const [path] of sections) {
+    for (const [path, title, photo] of sections) {
       await page.locator(`header nav a[href="${path}"]`).click();
+      await expect(page.locator("main h1")).toHaveText(title);
       const image = page.locator(".section-banner__photo");
+      await expect(image).toHaveAttribute("src", new RegExp(photo));
       await expect
         .poll(() =>
           image.evaluate(

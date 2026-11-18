@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { login, noOverflow } from "./helpers";
 
-test("photo reveal waits for loading; pointer feedback, keyboard and reduced motion remain usable", async ({
+test("first banner is immediate; later reveals, pointer feedback, keyboard and reduced motion remain usable", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -24,10 +24,7 @@ test("photo reveal waits for loading; pointer feedback, keyboard and reduced mot
     properties: getComputedStyle(el).transitionProperty,
     duration: getComputedStyle(el).transitionDuration,
   }));
-  expect(transition.properties).toBe("opacity, transform");
-  const duration = Number.parseFloat(transition.duration);
-  expect(duration).toBeGreaterThan(0);
-  expect(duration).toBeLessThanOrEqual(0.3);
+  expect(transition.duration).toBe("0s");
   await expect
     .poll(() => photo.evaluate((el) => getComputedStyle(el).opacity))
     .toBe("1");
@@ -38,6 +35,21 @@ test("photo reveal waits for loading; pointer feedback, keyboard and reduced mot
     .toBe("1");
   await tab.click();
   await expect(page.locator("main h1")).toHaveText("Расписание");
+  await expect(photo).toHaveAttribute("data-loaded", "true");
+  expect(
+    await photo.evaluate((el) => getComputedStyle(el).transitionDuration),
+  ).toBe("0.32s, 0.32s");
+  const body = page.locator(".section-banner__body");
+  expect(
+    await body.evaluate((el) => getComputedStyle(el).transitionDuration),
+  ).toBe("0.26s, 0.26s");
+  await body.evaluate((el) => el.setAttribute("data-stability-check", "same"));
+  await photo.evaluate((el) => el.setAttribute("data-stability-check", "same"));
+  const headerBefore = await page.locator("header nav").boundingBox();
+  await page.getByRole("button", { name: "Неделя", exact: true }).click();
+  await expect(body).toHaveAttribute("data-stability-check", "same");
+  await expect(photo).toHaveAttribute("data-stability-check", "same");
+  expect(await page.locator("header nav").boundingBox()).toEqual(headerBefore);
   await page.locator('header nav a[href="/academic-results"]').focus();
   await page.keyboard.press("Enter");
   await expect(page.locator(".cabinet-app")).toHaveAttribute(
@@ -67,7 +79,7 @@ test("photo reveal waits for loading; pointer feedback, keyboard and reduced mot
   ).toEqual({ duration: "0s", transform: "none" });
 });
 
-test("premium surfaces apply to cabinet routes while login stays separate", async ({
+test("study pages use the new palette and handwritten headings while other cabinet routes retain their theme", async ({
   page,
 }) => {
   await login(page);
@@ -81,11 +93,27 @@ test("premium surfaces apply to cabinet routes while login stays separate", asyn
   ]) {
     await page.goto(path);
     await expect(page.locator("main h1")).toBeVisible();
-    expect(
-      await page
-        .locator(".cabinet-app")
-        .evaluate((el) => getComputedStyle(el).backgroundImage),
-    ).toContain("premium-surface-");
+    const theme = await page.locator(".cabinet-app").evaluate((el) => ({
+      image: getComputedStyle(el).backgroundImage,
+      color: getComputedStyle(el).backgroundColor,
+    }));
+    if (["/today", "/schedule"].includes(path)) {
+      expect(theme).toEqual({ image: "none", color: "rgb(244, 246, 250)" });
+      expect(
+        await page
+          .locator("main h1")
+          .evaluate((el) => getComputedStyle(el).fontFamily),
+      ).toContain("Marck Script");
+      expect(
+        await page.evaluate(() =>
+          document.fonts
+            .load('400 70px "Marck Script"', "Сегодня Расписание")
+            .then((fonts) => fonts.length),
+        ),
+      ).toBeGreaterThan(0);
+    } else {
+      expect(theme.image).toContain("premium-surface-");
+    }
     expect(
       await page
         .locator(".cabinet-app")
