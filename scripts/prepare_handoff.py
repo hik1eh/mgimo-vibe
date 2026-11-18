@@ -24,7 +24,8 @@ def allowed(name):
     return (not path.is_absolute() and '..' not in path.parts and '\\' not in name
             and not any(part in FORBIDDEN_PARTS for part in path.parts)
             and not any(part.startswith('.env') and part != '.env.example' for part in path.parts)
-            and path.name != 'README.md' and not name.startswith('docs/06-research')
+            and path.name not in {'README.md', 'for_agent.md', 'docs_review.md'}
+            and not name.startswith('docs/06-research')
             and path.suffix.lower() not in {'.pem', '.key', '.db', '.dump', '.sql', '.pyc'})
 
 

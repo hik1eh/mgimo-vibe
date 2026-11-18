@@ -1,2 +1,7 @@
 * text=auto eol=lf
 *.ttf binary
+
+# Keep historical reference artwork out of source exports.
+frontend/src/assets/banners export-ignore
+frontend/src/assets/student-card-cover.webp export-ignore
+docs/screenshots export-ignore
