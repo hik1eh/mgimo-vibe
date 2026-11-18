@@ -33,7 +33,7 @@ def migrated():
 def database(migrated):
     with engine.begin() as conn:
         conn.execute(text('TRUNCATE announcements, lesson_changes, lessons, academic_results, study_scenarios, notifications, documents, request_events, requests, sessions, users, groups, faculties, teachers, campus_rooms RESTART IDENTITY CASCADE'))
-    credentials = {login: secrets.token_urlsafe(24) for login in ['student.a', 'student.b', 'staff.a']}
+    credentials = {login: secrets.token_urlsafe(24) for login in ['student.a', 'student.b', 'staff.a', 'teacher.a']}
     with SessionLocal() as db:
         seed(db, credentials, demo_date=date(2026, 11, 13))
     yield credentials

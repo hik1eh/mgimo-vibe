@@ -20,6 +20,7 @@ ACCOUNTS = {
     'student.a': ('DEMO_STUDENT_A_PASSWORD', 'student'),
     'student.b': ('DEMO_STUDENT_B_PASSWORD', 'student'),
     'staff.a': ('DEMO_STAFF_PASSWORD', 'staff'),
+    'teacher.a': ('DEMO_TEACHER_PASSWORD', 'teacher'),
 }
 
 
@@ -54,6 +55,9 @@ def check_demo(base, origin):
         try:
             for login, (key, role) in ACCOUNTS.items():
                 if not os.environ.get(key):
+                    if role == 'teacher':
+                        warnings.append('Teacher account is disabled. Add DEMO_TEACHER_PASSWORD to enable the journal.')
+                        continue
                     raise RuntimeError(f'Missing environment variable: {key}')
                 client = stack.enter_context(httpx.Client(base_url=base, timeout=15, trust_env=False))
                 csrf = get(client, '/auth/csrf')['csrf_token']
@@ -66,9 +70,19 @@ def check_demo(base, origin):
                 profile = get(client, '/me')
                 require(profile['login'] == login and profile['role'] == role, f'{login}: correct profile')
                 profiles[login] = profile
-            a, b, staff = (clients[name] for name in ACCOUNTS)
+            a, b, staff = (clients[name] for name in ('student.a', 'student.b', 'staff.a'))
             require(profiles['student.a']['faculty'] != profiles['student.b']['faculty'], 'Student faculties differ')
             require(profiles['staff.a']['faculty'] == profiles['student.a']['faculty'], 'Staff belongs to faculty A')
+            if teacher := clients.get('teacher.a'):
+                lessons = get(teacher, '/teaching/lessons')
+                require(bool(lessons), 'Teacher has assigned lessons')
+                get(a, '/teaching/lessons', 403)
+                get(teacher, '/staff/requests', 403)
+            require(len(get(a, '/request-types')) == 6, 'Six request types are available')
+            require(all(row['work_email'] for row in get(a, '/teachers')), 'Directory entries have work email')
+            notices = guest.get('/assets/third-party-notices.txt')
+            require(notices.status_code == 200 and 'Permission is hereby granted' in notices.text,
+                    'Frontend license notices are served')
             context = get(a, '/study-context')
             reference = date.fromisoformat(context['today'])
             monday = reference - timedelta(days=reference.weekday())

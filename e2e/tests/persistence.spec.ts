@@ -15,6 +15,21 @@ test("browser sessions and all records survive app and database container restar
     .getByRole("button", { name: "Отправить заявку", exact: true })
     .click();
   await expect(page).toHaveURL(/\/requests\/\d+$/);
+  const teacherContext = await browser.newContext({ baseURL: process.env.BASE_URL });
+  const teacher = await teacherContext.newPage();
+  await login(teacher, "teacher.a");
+  const lessons = await (await teacher.request.get("/api/v1/teaching/lessons")).json();
+  const taught = lessons.find((lesson: { status: string; semester: number | null }) =>
+    lesson.status !== "cancelled" && lesson.semester !== null,
+  );
+  const journalPath = `/api/v1/teaching/lessons/${taught.id}`;
+  await teacher.goto(`/teaching/lessons/${taught.id}`);
+  const checkpoint = teacher.getByLabel("Контрольная точка");
+  const nextCheckpoint = await checkpoint.inputValue() === "completed" ? "pending" : "completed";
+  await checkpoint.selectOption(nextCheckpoint);
+  await teacher.getByRole("button", { name: "Сохранить отметки" }).click();
+  await expect(teacher.getByRole("status").filter({ hasText: "Отметки сохранены" })).toBeVisible();
+  const savedJournal = await (await teacher.request.get(journalPath)).json();
   const paths = [
     "/me",
     "/requests",
@@ -61,6 +76,9 @@ test("browser sessions and all records survive app and database container restar
       await (await page.request.get("/api/v1" + path)).json(),
       path,
     ).toEqual(snapshots.get(path));
+  expect(await (await teacher.request.get(journalPath)).json()).toEqual(savedJournal);
+  await teacher.reload();
+  await expect(checkpoint).toHaveValue(nextCheckpoint);
   for (const path of staffPaths)
     expect(
       await (await staff.request.get("/api/v1" + path)).json(),
@@ -73,4 +91,5 @@ test("browser sessions and all records survive app and database container restar
     fullPage: true,
   });
   await staffContext.close();
+  await teacherContext.close();
 });

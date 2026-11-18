@@ -183,7 +183,7 @@ def test_seed_preserves_state_and_hashes_and_profile_constraints(signed, databas
         assert hashed.startswith('$argon2id$')
         assert hashed != database['student.a']
         seed(db, {login: 'ignored-password-change' for login in database})
-        assert db.scalar(select(func.count()).select_from(User)) == 3
+        assert set(db.scalars(select(User.login))) == set(database)
         assert db.get(CR, req['id'])
         assert original.password_hash == hashed
         other_group = db.scalar(select(Group).where(Group.id != original.group_id))

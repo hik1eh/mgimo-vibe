@@ -1,23 +1,22 @@
 import { expect, type Page } from "@playwright/test";
-export const secret = (login: string) =>
-  process.env[
-    login === "student.a"
-      ? "DEMO_STUDENT_A_PASSWORD"
-      : login === "student.b"
-        ? "DEMO_STUDENT_B_PASSWORD"
-        : "DEMO_STAFF_PASSWORD"
-  ]!;
+const passwords: Record<string, string> = {
+  "student.a": "DEMO_STUDENT_A_PASSWORD",
+  "student.b": "DEMO_STUDENT_B_PASSWORD",
+  "staff.a": "DEMO_STAFF_PASSWORD",
+  "teacher.a": "DEMO_TEACHER_PASSWORD",
+};
+export const secret = (login: string) => process.env[passwords[login]]!;
 export function scrub(message: string) {
-  for (const login of ["student.a", "student.b", "staff.a"])
+  for (const login of Object.keys(passwords))
     if (secret(login)) message = message.replaceAll(secret(login), "[secret]");
   return message;
 }
-export async function login(page: Page, account = "student.a") {
+export async function login(page: Page, account = "student.a", method: "click" | "tap" = "click") {
   try {
     await page.goto("/");
     await page.getByLabel("Логин", { exact: true }).fill(account);
     await page.getByLabel("Пароль", { exact: true }).fill(secret(account));
-    await page.getByRole("button", { name: "Войти в кабинет" }).click();
+    await page.getByRole("button", { name: "Войти в кабинет" })[method]();
     await expect(page.locator("header")).toBeVisible();
     await expect(page.locator("main h1")).toBeVisible();
   } catch (error) {

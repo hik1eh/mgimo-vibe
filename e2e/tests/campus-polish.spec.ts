@@ -51,7 +51,7 @@ test("news cards move between slots and a seen schedule change stops pulsing", a
 });
 
 for (const width of [360, 1440]) {
-  test(`student badge and all nine details at ${width}px`, async ({ page }) => {
+  test(`student badge and all ten details at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 940 });
     if (width > 640) await page.emulateMedia({ reducedMotion: "no-preference" });
     await login(page);
@@ -73,7 +73,7 @@ for (const width of [360, 1440]) {
     await expect(details).toBeVisible();
     await expect(details.locator(".profile-study-fields dt")).toHaveText([
       "ФИО", "ВУЗ", "Курс", "Группа", "Возраст", "Логин", "Факультет",
-      "Форма обучения", "№ студенческого",
+      "Направление", "Форма обучения", "№ студенческого",
     ]);
     await expect(details.getByText("СК-ОН-0201", { exact: true })).toBeVisible();
     if (width > 640) {
@@ -107,7 +107,10 @@ test("mobile tap acknowledges a move and the campus viewer fits a small screen",
   });
   const page = await context.newPage();
   try {
-    await login(page);
+    await login(page, "student.a", "tap");
+    const { today } = await (await page.request.get("/api/v1/study-context")).json();
+    await page.clock.setFixedTime(new Date(`${today}T05:00:00Z`));
+    await page.goto("/today");
     const alert = page.locator('.news-tile[data-move-pending="true"]');
     await expect(alert).toBeVisible();
     expect(await alert.evaluate((node) => getComputedStyle(node, "::after").animationName)).toBe("none");
