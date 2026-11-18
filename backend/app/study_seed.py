@@ -2,6 +2,7 @@ from collections import defaultdict
 from datetime import datetime, time, timedelta
 from sqlalchemy import select
 from .config import settings
+from .demo_calendar import DEFAULT_DEMO_DATE, TERM_START, TERM_END, demo_week
 from .models import StudyScenario, Lesson, LessonChange, AcademicResult, User
 from .study import MOSCOW
 from .campus_map import room_for, teacher_for
@@ -30,28 +31,32 @@ DIGITAL_TECHNOLOGY = {
 }
 
 
-def seed_demo_weeks(db, week, user, prefix, building, hours, courses, timetable, reserved):
-    since = datetime.combine(week, time.min, MOSCOW)
-    until = since + timedelta(weeks=2)
+def seed_timetable(db, date_range, user, prefix, building, hours, courses, timetable, reserved):
+    first_day, last_day = date_range
+    since = datetime.combine(first_day, time.min, MOSCOW)
+    until = datetime.combine(last_day + timedelta(days=1), time.min, MOSCOW)
     occupied = list(reserved)
     occupied.extend(db.execute(select(Lesson.starts_at, Lesson.ends_at).where(
         Lesson.group_id == user.group_id, Lesson.starts_at < until, Lesson.ends_at > since)))
     existing_keys = set(db.scalars(select(Lesson.demo_key).where(
         Lesson.demo_key.startswith(f'{prefix}-timetable-'))))
-    for week_offset in range(2):
-        for weekday, subjects in enumerate(timetable):
-            day = week + timedelta(weeks=week_offset, days=weekday)
-            for hour, name in zip(hours, subjects, strict=True):
-                key = f'{prefix}-timetable-{day.isoformat()}-{hour}'
-                starts = datetime.combine(day, time(hour), MOSCOW)
-                ends = starts + timedelta(minutes=90)
-                if key in existing_keys or any(start < ends and end > starts for start, end in occupied):
-                    continue
-                subject, teacher, kind, room = courses[name]
-                db.add(Lesson(demo_key=key, group_id=user.group_id, subject=subject,
-                              instructor=teacher_for(db, teacher), kind=kind, place=room_for(db, building, room),
-                              starts_at=starts, ends_at=ends, status='scheduled', semester=DEMO_SEMESTER))
-                occupied.append((starts, ends))
+    instructors = {name: teacher_for(db, teacher) for name, (_, teacher, _, _) in courses.items()}
+    rooms = {room: room_for(db, building, room) for room in sorted({data[3] for data in courses.values()})}
+    for offset in range((last_day - first_day).days + 1):
+        day = first_day + timedelta(days=offset)
+        if day.weekday() >= len(timetable):
+            continue
+        for hour, name in zip(hours, timetable[day.weekday()], strict=True):
+            key = f'{prefix}-timetable-{day.isoformat()}-{hour}'
+            starts = datetime.combine(day, time(hour), MOSCOW)
+            ends = starts + timedelta(minutes=90)
+            if key in existing_keys or any(start < ends and end > starts for start, end in occupied):
+                continue
+            subject, _, kind, room = courses[name]
+            db.add(Lesson(demo_key=key, group_id=user.group_id, subject=subject,
+                          instructor=instructors[name], kind=kind, place=rooms[room],
+                          starts_at=starts, ends_at=ends, status='scheduled', semester=DEMO_SEMESTER))
+            occupied.append((starts, ends))
 
 
 def snapshot(lesson):
@@ -62,10 +67,12 @@ def snapshot(lesson):
 def seed_study(db, demo_date=None):
     scenario = db.get(StudyScenario, 1)
     if not scenario:
-        scenario = StudyScenario(id=1, reference_date=demo_date or settings.demo_date or datetime.now(MOSCOW).date())
+        scenario = StudyScenario(id=1, reference_date=demo_date or settings.demo_date or DEFAULT_DEMO_DATE)
         db.add(scenario)
     anchor = scenario.reference_date
-    week = anchor - timedelta(days=anchor.weekday())
+    week = demo_week(anchor)
+    fixed_term = TERM_START <= anchor <= TERM_END
+    date_range = (TERM_START, TERM_END) if fixed_term else (week, week + timedelta(days=13))
     demo_day = anchor if anchor.weekday() < 5 else week
     a, b, staff = [db.scalar(select(User).where(User.login == login)) for login in ['student.a', 'student.b', 'staff.a']]
     definitions = [
@@ -96,24 +103,25 @@ def seed_study(db, demo_date=None):
                 reason='Смена аудитории: 305 → 412.' if status == 'moved' else 'Отмена демонстрационного занятия.',
                 created_at=datetime.combine(week - timedelta(days=1), time(16), MOSCOW)))
 
-    seed_demo_weeks(db, week, a, 'a', 'Северный корпус', (9, 11, 13), SOCIAL_SCIENCES, (
+    seed_timetable(db, date_range, a, 'a', 'Северный корпус', (9, 11, 13), SOCIAL_SCIENCES, (
         ('sociology', 'methods', 'writing'),
         ('history', 'statistics', 'culture'),
         ('sociology', 'ethics', 'writing'),
         ('methods', 'culture', 'history'),
         ('statistics', 'sociology', 'ethics'),
     ), original_slots[a.group_id])
-    seed_demo_weeks(db, week, b, 'b', 'Технологический корпус', (10, 12, 14), DIGITAL_TECHNOLOGY, (
+    seed_timetable(db, date_range, b, 'b', 'Технологический корпус', (10, 12, 14), DIGITAL_TECHNOLOGY, (
         ('algorithms', 'design', 'programming'),
         ('networks', 'logic', 'databases'),
         ('programming', 'design', 'project'),
         ('algorithms', 'databases', 'networks'),
         ('design', 'project', 'logic'),
     ), original_slots[b.group_id])
-    for user, prefix, subjects in [
-        (a, 'a', ['Социология повседневности', 'Методы социальных исследований', 'История социальных идей', 'Академическое письмо']),
-        (b, 'b', ['Алгоритмы и структуры данных', 'Математическая логика', 'Проектирование интерфейсов', 'Основы программирования']),
+    for user, prefix, courses, control_order in [
+        (a, 'a', SOCIAL_SCIENCES, ('sociology', 'methods', 'history', 'writing', 'ethics', 'culture', 'statistics')),
+        (b, 'b', DIGITAL_TECHNOLOGY, ('algorithms', 'logic', 'design', 'programming', 'project', 'networks', 'databases')),
     ]:
+        subjects = [courses[code][0] for code in control_order]
         definitions = [
             ('upcoming', subjects[0], DEMO_SEMESTER, 'credit', 'upcoming', 5, None, None),
             ('awaiting', subjects[1], DEMO_SEMESTER, 'exam', 'awaiting', -1, None, None),
@@ -121,10 +129,19 @@ def seed_study(db, demo_date=None):
             ('exam', subjects[3], DEMO_SEMESTER, 'exam', 'published', -2, 5 if prefix == 'a' else 4, None),
             ('previous', 'Иностранный язык' if prefix == 'a' else 'Дискретная математика', 2, 'exam', 'published', -120, 4 if prefix == 'a' else 5, None),
         ]
+        if fixed_term:
+            for index, (kind, days_before_end) in enumerate((('credit', 6), ('exam', 4), ('exam', 2))):
+                control_day = TERM_END - timedelta(days=days_before_end)
+                definitions.append((f'final-{control_order[4 + index]}', subjects[4 + index], DEMO_SEMESTER,
+                                    kind, 'upcoming', (control_day - anchor).days, None, None))
         for key, subject, semester, kind, status, offset, grade, passed in definitions:
             demo_key = f'{prefix}-{key}'
             if db.scalar(select(AcademicResult.id).where(AcademicResult.demo_key == demo_key)):
                 continue
+            control_day = anchor + timedelta(days=offset)
+            if fixed_term and semester == DEMO_SEMESTER:
+                control_day = min(TERM_END, max(TERM_START, control_day))
+            control_time = time(16) if key.startswith('final-') else time(10)
             db.add(AcademicResult(demo_key=demo_key, student_id=user.id, subject=subject, semester=semester,
-                kind=kind, status=status, control_at=datetime.combine(anchor + timedelta(days=offset), time(10), MOSCOW),
+                kind=kind, status=status, control_at=datetime.combine(control_day, control_time, MOSCOW),
                 grade=grade, credit_passed=passed))

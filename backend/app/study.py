@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func, or_
 from sqlalchemy.orm import Session, selectinload
 from .db import get_db
+from .demo_calendar import demo_week
 from .models import AcademicResult, Group, Lesson, LessonJournal, StudyScenario, User
 from .security import student, staff
 from .campus_map import campus_floors, route_segments
@@ -21,7 +22,7 @@ def reference_date(db):
 def study_context(user=Depends(student), db: Session = Depends(get_db)):
     today = reference_date(db)
     return dict(today=today, timezone='Europe/Moscow',
-                demo_day=today if today.weekday() < 5 else today - timedelta(days=today.weekday()),
+                demo_day=today if today.weekday() < 5 else demo_week(today),
                 demo_dates=True)
 
 

@@ -122,6 +122,7 @@ def test_teacher_marks_are_private_versioned_and_persistent(signed, database):
     assert [row['student_id'] for row in teacher.get(detail).json()['roster']] == [own_id]
     mark_path = detail + f'/journal/{own_id}'
     scores_path = f'{API}/academic-results?semester=3'
+    before = student.get(scores_path).json()['engagement']
     stranger_before = stranger.get(scores_path).json()['engagement']
     version = teacher.get(detail).json()['roster'][0]['version']
     data = dict(attendance='absent', checkpoint='pending', version=version)
@@ -136,10 +137,12 @@ def test_teacher_marks_are_private_versioned_and_persistent(signed, database):
     assert marked['version'] == version + 1
     assert teacher.put(mark_path, json=data).json() == marked
     assert teacher.put(mark_path, json=dict(data, attendance='present')).status_code == 409
-    assert student.get(scores_path).json()['engagement'] == {
-        'present': 0, 'absent': 1, 'completed': 0, 'pending': 1,
-        'subjects': [{'subject': lesson['subject'], 'present': 0, 'absent': 1, 'completed': 0, 'pending': 1}],
-    }
+    changed = student.get(scores_path).json()['engagement']
+    for field, difference in [('present', -1), ('absent', 1), ('completed', -1), ('pending', 1)]:
+        assert changed[field] == before[field] + difference
+        subject_before = next(row for row in before['subjects'] if row['subject'] == lesson['subject'])
+        subject_after = next(row for row in changed['subjects'] if row['subject'] == lesson['subject'])
+        assert subject_after[field] == subject_before[field] + difference
     assert student.get(f'{API}/academic-results?semester=2').json()['engagement']['subjects'] == []
     assert stranger.get(scores_path, params={'student_id': own_id, 'semester': 3}).json()['engagement'] == stranger_before
 
@@ -148,11 +151,14 @@ def test_teacher_marks_are_private_versioned_and_persistent(signed, database):
     with SessionLocal() as db:
         seed(db, database)
     assert teacher.get(detail).json()['roster'][0] == cleared
-    assert student.get(scores_path).json()['engagement']['subjects'] == []
+    cleared_summary = student.get(scores_path).json()['engagement']
+    assert cleared_summary['absent'] == before['absent'] and cleared_summary['pending'] == before['pending']
+    assert cleared_summary['present'] == before['present'] - 1 and cleared_summary['completed'] == before['completed'] - 1
 
 
 def test_cancellation_excludes_marks_and_closes_journal(signed):
     student, staff, teacher = map(signed, ['student.a', 'staff.a', 'teacher.a'])
+    before = student.get(f'{API}/academic-results').json()['engagement']
     row = next(item for item in teacher.get(f'{API}/teaching/lessons').json() if item['status'] == 'moved')
     response = staff.patch(f"{API}/staff/schedule/{row['id']}",
                            json=dict(action='cancel', reason='Проверка отмены', version=row['version']))
@@ -162,4 +168,6 @@ def test_cancellation_excludes_marks_and_closes_journal(signed):
     response = teacher.put(detail + f"/journal/{entry['student_id']}",
                             json=dict(attendance='absent', checkpoint='pending', version=entry['version']))
     assert response.status_code == 409
-    assert student.get(f'{API}/academic-results').json()['engagement']['subjects'] == []
+    after = student.get(f'{API}/academic-results').json()['engagement']
+    assert after['present'] == before['present'] - 1 and after['completed'] == before['completed'] - 1
+    assert after['absent'] == before['absent'] and after['pending'] == before['pending']

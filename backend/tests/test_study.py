@@ -44,6 +44,34 @@ def test_today_empty_day_and_range_validation(signed):
         assert a.get('/api/v1/schedule?' + query).status_code == 422
 
 
+def test_demo_term_covers_both_groups_from_november_to_december(signed):
+    start, end = date(2026, 11, 1), date(2026, 12, 20)
+    weekdays = {
+        start + timedelta(days=offset) for offset in range((end - start).days + 1)
+        if (start + timedelta(days=offset)).weekday() < 5
+    }
+    for login, count in [('student.a', 106), ('student.b', 105)]:
+        student = signed(login)
+        lessons = []
+        for first, last in [('2026-11-01', '2026-11-30'), ('2026-12-01', '2026-12-20')]:
+            response = student.get('/api/v1/schedule', params={'start': first, 'end': last})
+            assert response.status_code == 200
+            lessons.extend(response.json())
+        assert len(lessons) == count
+        assert {datetime.fromisoformat(row['starts_at']).astimezone(MOSCOW).date() for row in lessons} == weekdays
+        assert all(previous['ends_at'] <= current['starts_at'] for previous, current in zip(lessons, lessons[1:]))
+        teachers = student.get('/api/v1/teachers').json()
+        assert len(teachers) == 7 and all(person['work_email'].endswith('.example') for person in teachers)
+        controls = student.get('/api/v1/academic-results').json()['results']
+        assert {row['subject'] for row in controls} == {
+            row['subject'] for row in lessons if row['kind'] != 'Консультация'
+        }
+        control_days = {datetime.fromisoformat(row['control_at']).astimezone(MOSCOW).date() for row in controls}
+        assert {date(2026, 12, 14), date(2026, 12, 16), date(2026, 12, 18)} <= control_days
+        assert all(start <= day <= end for day in control_days)
+        assert student.get('/api/v1/schedule?start=2026-12-21&end=2026-12-21').json() == []
+
+
 def test_moscow_day_boundaries(signed):
     a = signed('student.a')
     with SessionLocal() as db:
@@ -87,9 +115,9 @@ def test_results_scope_summary_labels_and_semesters(signed):
     result = a.get('/api/v1/academic-results').json()
     other = b.get('/api/v1/academic-results').json()
     assert result['semesters'] == [3, 2] and result['semester'] == 3
-    assert result['summary']['closed'] == 2 and result['summary']['total'] == 4
+    assert result['summary']['closed'] == 2 and result['summary']['total'] == 7
     assert result['summary']['awaiting'] == 1
-    assert result['session_period'] == {'start': '2026-11-10', 'end': '2026-11-18'}
+    assert result['session_period'] == {'start': '2026-11-10', 'end': '2026-12-18'}
     assert result['summary']['next_credit']['subject'] == 'Социология повседневности'
     assert other['summary']['next_credit']['subject'] == 'Алгоритмы и структуры данных'
     assert not ({r['id'] for r in result['results']} & {r['id'] for r in other['results']})
@@ -119,7 +147,7 @@ def test_summary_uses_passing_results_and_next_future_credit(signed):
                 kind='credit', status='upcoming', control_at=datetime(2026, 11, 13, 10, tzinfo=MOSCOW) + timedelta(days=offset)))
         db.commit()
     result = a.get('/api/v1/academic-results').json()
-    assert result['summary']['closed'] == 1 and result['summary']['total'] == 7
+    assert result['summary']['closed'] == 1 and result['summary']['total'] == 10
     assert result['summary']['next_credit']['subject'] == 'Дополнительный зачёт 1'
     assert any(r['label'] == 'Не сдано · 2' and not r['passed'] for r in result['results'])
     with SessionLocal() as db:
@@ -173,6 +201,6 @@ def test_study_seed_preserves_date_changes_and_counts(database):
         assert db.get(StudyScenario, 1).reference_date == date(2026, 11, 13)
         assert set(db.scalars(select(Lesson.id))) == lessons_before
         assert db.scalar(select(func.count()).select_from(LessonChange)) == 2
-        assert db.scalar(select(func.count()).select_from(AcademicResult)) == 10
+        assert db.scalar(select(func.count()).select_from(AcademicResult)) == 16
         assert consultation.place.number == '501' and result.grade == 3
         assert moved.starts_at == starts_at

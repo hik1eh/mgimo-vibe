@@ -1,6 +1,7 @@
 from datetime import timedelta
 from sqlalchemy import select
-from .models import Announcement, Lesson, User, now
+from .demo_calendar import TERM_START, TERM_END
+from .models import Announcement, Lesson, StudyScenario, User, now
 
 
 def seed_announcements(db):
@@ -13,8 +14,17 @@ def seed_announcements(db):
         ('group-move', 'group', a.faculty_id, a.group_id, moved.id, 'Изменение аудитории семинара', 'Проверьте актуальное место занятия в связанной карточке.', 'Деканат общественных наук', True),
         ('library-hours', 'university', None, None, None, 'Читальный зал открыт', 'В демонстрационном кампусе читальный зал работает по будням с 09:00 до 19:00. Вход через главный атриум.', 'Библиотека Северного кампуса', False),
         ('certificate-info', 'university', None, None, None, 'Справка для учебного центра', 'Электронную справку об обучении можно заказать в разделе «Заявки». Срок обработки — до 2 рабочих дней.', 'Учебный отдел', False),
-        ('semester-reminder', 'university', None, None, None, 'Контрольные даты семестра', 'Проверьте даты зачётов и экзаменов в разделе «Оценки». Опубликованные результаты появятся в таблице.', 'Учебный отдел', False),
+        ('semester-reminder', 'university', None, None, None, 'Контрольные даты семестра', 'Проверьте даты зачётов и экзаменов в разделе «Успеваемость». Опубликованные результаты появятся в таблице.', 'Учебный отдел', False),
     ]
+    if TERM_START <= db.get(StudyScenario, 1).reference_date <= TERM_END:
+        definitions.extend([
+            ('december-finals-a', 'faculty', a.faculty_id, None, None, 'Декабрьская сессия ОН-201',
+             '14 декабря — зачёт по профессиональной этике, 16 декабря — экзамен по культурологии, 18 декабря — экзамен по прикладной статистике.',
+             'Деканат общественных наук', False),
+            ('december-finals-b', 'faculty', b.faculty_id, None, None, 'Декабрьская сессия ЦТ-202',
+             '14 декабря — зачёт по проектному практикуму, 16 декабря — экзамен по компьютерным сетям, 18 декабря — экзамен по базам данных.',
+             'Деканат цифровых технологий', False),
+        ])
     for key, audience, faculty, group, lesson, title, text, source, pinned in definitions:
         if db.scalar(select(Announcement.id).where(Announcement.demo_key == key)):
             continue

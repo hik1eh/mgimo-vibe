@@ -38,7 +38,11 @@ def seed_teaching(db, faculty_id, password):
 
     fixtures = [
         ('student.a', 'a-moved', 'present', 'completed'),
+        ('student.a', 'a-timetable-2026-11-02-9', 'present', 'completed'),
+        ('student.a', 'a-timetable-2026-11-04-11', 'absent', None),
         ('student.b', 'b-regular', 'present', 'pending'),
+        ('student.b', 'b-timetable-2026-11-02-10', 'present', 'completed'),
+        ('student.b', 'b-timetable-2026-11-03-14', 'present', 'completed'),
     ]
     for login, key, attendance, checkpoint in fixtures:
         record = db.execute(

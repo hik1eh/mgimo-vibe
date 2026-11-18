@@ -40,7 +40,9 @@ def consultation(c):
 def test_seeded_feed_audiences_direct_links_and_order(signed, client):
     a, b = signed('student.a'), signed('student.b')
     first, second = a.get('/api/v1/announcements').json(), b.get('/api/v1/announcements').json()
-    assert len(first) == 6 and len(second) == 5
+    assert len(first) == 7 and len(second) == 6
+    assert [r['title'] for r in first if r['title'].startswith('Декабрьская сессия')] == ['Декабрьская сессия ОН-201']
+    assert [r['title'] for r in second if r['title'].startswith('Декабрьская сессия')] == ['Декабрьская сессия ЦТ-202']
     common = {r['id'] for r in first} & {r['id'] for r in second}
     assert len(common) == 4
     assert all(r['audience'] == 'university' for r in first if r['id'] in common)
@@ -219,7 +221,7 @@ def test_staff_filters_and_seed_preserves_publications(signed, database):
         row.status = 'withdrawn'; row.title = 'Сохранённая правка'
         db.commit(); seed(db, database)
         assert row.status == 'withdrawn' and row.title == 'Сохранённая правка'
-        assert db.scalar(select(func.count()).select_from(Announcement)) == 7
+        assert db.scalar(select(func.count()).select_from(Announcement)) == 9
         lesson = db.scalar(select(Lesson).where(Lesson.demo_key == 'a-moved'))
         bad = Announcement(title='Плохая связь', text='Проверка ограничений.', source='Тест', audience='group',
             faculty_id=2, group_id=groups[0]['id'], lesson_id=lesson.id, status='draft')
