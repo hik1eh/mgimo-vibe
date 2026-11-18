@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 from .db import get_db
 from .models import AcademicResult, Group, Lesson, StudyScenario, User
 from .security import student, staff
-from .campus_map import route_segments
+from .campus_map import campus_floors, route_segments
 
 MOSCOW = ZoneInfo('Europe/Moscow')
 router = APIRouter(prefix='/api/v1')
@@ -67,8 +67,8 @@ def lesson_detail(lesson_id: int, user=Depends(student), db: Session = Depends(g
 @router.get('/schedule/{lesson_id}/route')
 def lesson_route(lesson_id: int, user=Depends(student), db: Session = Depends(get_db)):
     lesson = student_lesson(lesson_id, user, db)
-    return dict(lesson=lesson_data(lesson),
-                segments=route_segments(lesson.place) if lesson.status != 'cancelled' else [])
+    segments = route_segments(lesson.place) if lesson.status != 'cancelled' else []
+    return dict(lesson=lesson_data(lesson), segments=segments, floors=campus_floors() if segments else [])
 
 
 def result_data(row):

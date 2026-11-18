@@ -539,109 +539,6 @@
   width: 100%;
   margin-top: 10px;
 }
-.route-plan-panel .section-heading {
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.route-plan-panel .section-heading h2 {
-  margin: 0;
-}
-.campus-plan {
-  width: 100%;
-  display: block;
-  height: auto;
-  margin-top: 14px;
-  border-radius: 12px;
-  background: #f0f5fb;
-}
-.plan-base {
-  fill: #fff;
-  stroke: #8faabb;
-  stroke-width: 3;
-}
-.plan-room {
-  fill: #e1eaf4;
-  stroke: #8aa7bf;
-  stroke-width: 2.5;
-}
-.plan-room[data-kind="atrium"] {
-  fill: #d9e9ee;
-}
-.plan-room:is([data-kind="lift"], [data-kind="stairs"]) {
-  fill: #ccd9ed;
-}
-.plan-room[data-destination] {
-  fill: #b7daf6;
-  stroke: #245bab;
-  stroke-width: 4;
-}
-.plan-room-label,
-.plan-point-label,
-.plan-corridor-label {
-  font:
-    700 21px Manrope,
-    sans-serif;
-  fill: #29425c;
-}
-.plan-point-label {
-  font-size: 19px;
-}
-.plan-corridor-label {
-  font-size: 18px;
-  fill: #516579;
-}
-.plan-room-label[data-compact] {
-  font-size: 16px;
-}
-.plan-path,
-.plan-path-halo {
-  fill: none;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-}
-.plan-path {
-  stroke: #245bab;
-  stroke-width: 7;
-}
-.plan-path-halo {
-  stroke: #fff;
-  stroke-width: 13;
-}
-.plan-start {
-  fill: #fff;
-  stroke: #245bab;
-  stroke-width: 5;
-}
-.plan-end {
-  fill: #245bab;
-  stroke: #fff;
-  stroke-width: 3;
-}
-.plan-legend {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  margin-top: 12px;
-  font-size: 13px;
-}
-.plan-legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.plan-legend i {
-  width: 12px;
-  height: 12px;
-  border: 2px solid var(--blue);
-  border-radius: 50%;
-}
-.plan-legend .legend-end {
-  background: var(--blue);
-  border-radius: 3px;
-}
 .route-steps ol {
   list-style: none;
   display: grid;
@@ -1298,17 +1195,8 @@
   .semester-dialog {
     max-height: calc(100dvh - 24px);
   }
-  .route-plan-panel .section-heading {
-    display: grid;
-  }
-  .route-plan-panel .segmented {
-    justify-self: start;
-  }
   .route-layout {
     gap: 14px;
-  }
-  .campus-plan {
-    margin-top: 10px;
   }
   .cabinet-app
     :is(.request-filters, .contact-form, .faculty-group)
@@ -1321,9 +1209,6 @@
     .campus-banner[data-section="/notifications"]
     .campus-banner-title {
     max-width: 72%;
-  }
-  .route-plan-panel .segmented button {
-    padding-inline: 9px;
   }
   .route-steps button {
     padding-inline: 10px;

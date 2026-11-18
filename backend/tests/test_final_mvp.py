@@ -30,7 +30,11 @@ def test_route_uses_current_room_and_notification_scope(signed):
     rows = staff.get('/api/v1/staff/schedule').json()
     lesson = next(row for row in rows if row['room'] == '305')
     path = f"/api/v1/schedule/{lesson['id']}/route"
-    assert [s['floor'] for s in a.get(path).json()['segments']] == [1, 3]
+    initial = a.get(path).json()
+    assert [s['floor'] for s in initial['segments']] == [1, 3]
+    assert [level['floor'] for level in initial['floors']] == [1, 2, 3, 4]
+    assert 'направо' in initial['segments'][-1]['instruction']
+    assert initial['floors'][2]['plan'] == initial['segments'][-1]['plan']
     update_path = f"/api/v1/staff/schedule/{lesson['id']}"
     moved = staff.patch(update_path, json=dict(version=lesson['version'], room='412', reason='Уточнили аудиторию')).json()
     assert moved['room_id'] != lesson['room_id'] and moved['teacher_id'] == lesson['teacher_id']
@@ -40,6 +44,8 @@ def test_route_uses_current_room_and_notification_scope(signed):
     assert route['segments'][0]['points'][0] == [340, 336]
     assert route['segments'][1]['points'][-1] == [598, 184]
     assert route['segments'][1]['end'] == 'Аудитория 412'
+    assert 'налево' in route['segments'][1]['instruction']
+    assert route['floors'] == initial['floors']
     assert b.get(path).status_code == 404
     assert staff.get(path).status_code == 403
     notice = next(item for item in a.get('/api/v1/notifications').json() if item['lesson_id'] == lesson['id'])
@@ -49,7 +55,7 @@ def test_route_uses_current_room_and_notification_scope(signed):
     assert a.get(f"/api/v1/notifications/{notice['id']}").json()['read']
     assert staff.patch(update_path, json=dict(version=moved['version'], action='cancel', reason='Пара отменена')).status_code == 200
     result = a.get(path).json()
-    assert not result['lesson']['has_route'] and not result['segments']
+    assert not result['lesson']['has_route'] and not result['segments'] and not result['floors']
 
 
 def test_published_announcement_notice_tracks_visibility(signed):

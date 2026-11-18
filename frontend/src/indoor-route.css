@@ -1,0 +1,188 @@
+.indoor-heading {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.indoor-heading h2 {
+  margin: 0;
+}
+
+.indoor-floors {
+  display: flex;
+  max-width: 100%;
+}
+
+.indoor-floors button {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 42px;
+  padding-inline: 11px;
+  white-space: nowrap;
+}
+
+.indoor-stage {
+  position: relative;
+  isolation: isolate;
+  container-type: inline-size;
+  height: clamp(240px, 32vw, 405px);
+  overflow: hidden;
+  margin-top: 16px;
+  border-radius: 12px;
+  background: radial-gradient(ellipse at 50% 64%, #385a76, #162f49 90%);
+}
+
+.indoor-visual,
+.indoor-renderer,
+.indoor-labels {
+  position: absolute;
+  inset: 0;
+}
+
+.indoor-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.indoor-labels {
+  pointer-events: none;
+}
+
+.indoor-label {
+  position: absolute;
+  visibility: hidden;
+  width: max-content;
+  max-width: 108px;
+  padding: 4px 7px;
+  border: 1px solid #9fbbd340;
+  border-radius: 6px;
+  transform: translate(-50%, -100%);
+  background: #17314ae8;
+  color: #eff8ff;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.indoor-label[data-kind="start"] {
+  background: #f2f8ff;
+  color: #173956;
+}
+
+.indoor-label[data-kind="end"] {
+  background: #174e99;
+  color: #fff;
+}
+
+.indoor-label:is([data-kind="start"], [data-kind="end"]) {
+  padding: 5px 9px;
+  font-size: 12px;
+  box-shadow: 0 4px 11px #0a1f4266;
+}
+
+@container (max-width: 460px) {
+  .indoor-label[data-kind="landmark"] {
+    display: none;
+  }
+}
+
+.indoor-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  margin: 0;
+  padding: 24px;
+  color: #ecf6ff;
+  text-align: center;
+}
+
+.indoor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 9px 16px;
+  margin-top: 12px;
+}
+
+.indoor-legend,
+.indoor-legend span,
+.indoor-views {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+
+.indoor-legend {
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+.indoor-legend i {
+  flex-shrink: 0;
+  width: 11px;
+  height: 11px;
+  border: 2px solid var(--blue);
+  border-radius: 50%;
+}
+
+.indoor-end {
+  background: var(--blue);
+}
+
+.indoor-outside {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.cabinet-app .indoor-views button {
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+.indoor-instruction {
+  margin: 0 0 14px;
+  padding: 14px 14px 15px;
+  border-radius: 10px;
+  background: #edf4fc;
+  color: #162f49;
+}
+
+.indoor-instruction h3 {
+  margin: 6px 0;
+  font-size: 16px;
+}
+
+.indoor-instruction p,
+.indoor-unmapped p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+@media (max-width: 600px) {
+  .indoor-floors {
+    width: 100%;
+  }
+
+  .indoor-floors button {
+    min-height: 44px;
+    padding-inline: 6px;
+    font-size: 12px;
+  }
+
+  .indoor-stage {
+    height: clamp(207px, 49vw, 260px);
+    margin-top: 12px;
+  }
+
+  .indoor-toolbar {
+    gap: 7px 12px;
+  }
+}

@@ -1,4 +1,4 @@
-"""Plans and corridor graph for the fictional North Campus building."""
+"""Floor layouts and corridor graph for the fictional North Campus building."""
 from collections import deque
 
 from sqlalchemy import select
@@ -7,6 +7,7 @@ from sqlalchemy.dialects.postgresql import insert
 from .models import CampusRoom, Teacher
 
 NORTH = 'Северный корпус'
+NORTH_FLOORS = (1, 2, 3, 4)
 DOORS = {'210': (2, 166, 184), '305': (3, 352, 184), '412': (4, 598, 184)}
 LOCATIONS = {(NORTH, number): (floor, f'door-{number}') for number, (floor, _, _) in DOORS.items()}
 LOCATIONS.update({(NORTH, '118'): (1, None), ('Технологический корпус', '602'): (6, None),
@@ -66,11 +67,15 @@ def floor_plan(floor):
     return dict(width=680, height=368, spaces=spaces)
 
 
+def campus_floors():
+    return [dict(floor=floor, plan=floor_plan(floor)) for floor in NORTH_FLOORS]
+
+
 def route_segments(room):
     """Find a connected path from the entrance to the room's mapped door."""
     nodes = {'entry': ENTRANCE, 'lobby': (1, ENTRANCE[1], HALL_Y)}
     edges = [('entry', 'lobby'), ('lobby', 'hall-1')]
-    for floor in range(1, 5):
+    for floor in NORTH_FLOORS:
         nodes[f'hall-{floor}'] = (floor, LIFT_X, HALL_Y)
         nodes[f'lift-{floor}'] = (floor, LIFT_X, LIFT_Y)
         edges.append((f'hall-{floor}', f'lift-{floor}'))
@@ -108,6 +113,8 @@ def route_segments(room):
         segments[-1]['points'].append([x, y])
     segments[0].update(start='Старт · главный вход', end='Лифт',
                        instruction='От главного входа идите до коридора, затем направо к лифту.')
+    # The lift doors face the corridor in the positive plan-y direction.
+    turn = 'налево' if nodes[room.map_node][1] > LIFT_X else 'направо'
     segments[-1].update(start='Лифт', end=f'Аудитория {room.number}',
-                        instruction=f'От лифта пройдите по коридору до аудитории {room.number}.')
+                        instruction=f'Выйдите из лифта, поверните {turn} и пройдите до двери аудитории {room.number}.')
     return segments
