@@ -47,14 +47,6 @@ export function StaffSchedulePage() {
   };
   return (
     <>
-      <div className="page-title">
-        <span className="eyebrow">КАБИНЕТ СОТРУДНИКА</span>
-        <h1>Расписание факультета</h1>
-        <p>
-          Изменения сохраняются в истории занятия. После правки можно
-          опубликовать связанное объявление.
-        </p>
-      </div>
       <section className="panel">
         <div className="staff-schedule-filters">
           <label>
@@ -425,11 +417,6 @@ export function StaffAnnouncementsPage() {
   return (
     <>
       <div className="page-title title-row">
-        <div>
-          <span className="eyebrow">КАБИНЕТ СОТРУДНИКА</span>
-          <h1>Объявления факультета</h1>
-          <p>Черновики, публикации и снятые сообщения своей аудитории.</p>
-        </div>
         <Link className="primary" to="/staff/announcements/new">
           Создать объявление ＋
         </Link>
@@ -494,6 +481,7 @@ export function StaffAnnouncementsPage() {
 
 type AnnouncementDraft = {
   title: string;
+  fact: string;
   text: string;
   audience: "faculty" | "group";
   group_id: string;
@@ -512,6 +500,7 @@ function announcementDraft(
     title:
       row?.title ||
       (lesson ? `Изменение занятия: ${lesson.subject}`.slice(0, 160) : ""),
+    fact: row?.fact || "",
     text:
       row?.text ||
       (lesson
@@ -630,6 +619,7 @@ function AnnouncementEditor({
     try {
       const body = {
         title: draft.title,
+        fact: draft.fact || null,
         text: draft.text,
         audience: draft.audience,
         group_id:
@@ -707,6 +697,14 @@ function AnnouncementEditor({
                 maxLength={160}
                 value={draft.title}
                 onChange={(e) => field("title", e.target.value)}
+              />
+            </label>
+            <label>
+              Краткий факт
+              <input
+                maxLength={140}
+                value={draft.fact || ""}
+                onChange={(e) => field("fact", e.target.value)}
               />
             </label>
             <label>

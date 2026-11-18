@@ -30,6 +30,25 @@ const state = () =>
     "2026-11-18",
   );
 
+test("stable IDs distinguish teachers with identical names and rooms with the same number", () => {
+  const left = lesson(1, { teacher_id: 15, room_id: 90 });
+  const right = lesson(2, {
+    teacher_id: 16,
+    room_id: 91,
+    building: "Южный корпус",
+  });
+  const filters = readScheduleState(
+    scheduleParams({ ...state(), teacher: "16", room: "91" }),
+    "2026-11-18",
+  );
+  assert.deepEqual(
+    filterLessons([left, right], filters, "ОН-201", 1).map((row) => row.id),
+    [2],
+  );
+  assert.equal(teacherKey(right), "16");
+  assert.equal(roomKey(left), "90");
+});
+
 test("missing own-group default differs from explicit all and survives URL round-trip", () => {
   assert.equal(state().group, "mine");
   const all = {

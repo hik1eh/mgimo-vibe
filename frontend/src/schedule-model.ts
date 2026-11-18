@@ -8,10 +8,17 @@ export type ScheduleState = {
   teacher: string;
   room: string;
 };
-export const teacherKey = (lesson: Pick<Lesson, "teacher">) =>
-  JSON.stringify(["teacher", lesson.teacher]);
-export const roomKey = (lesson: Pick<Lesson, "building" | "room">) =>
-  JSON.stringify(["room", lesson.building, lesson.room]);
+export const teacherKey = (lesson: Pick<Lesson, "teacher" | "teacher_id">) =>
+  lesson.teacher_id
+    ? String(lesson.teacher_id)
+    : JSON.stringify(["teacher", lesson.teacher]);
+export const roomKey = (
+  lesson: Pick<Lesson, "building" | "room" | "room_id">,
+) =>
+  lesson.room_id
+    ? String(lesson.room_id)
+    : JSON.stringify(["room", lesson.building, lesson.room]);
+const numericId = /^[1-9]\d{0,9}$/;
 
 export function identityParts(
   value: string,
@@ -45,13 +52,14 @@ export function readScheduleState(
         ? date
         : today,
     group:
-      group === "all" ||
-      group === "mine" ||
-      (group && /^[1-9]\d{0,8}$/.test(group))
+      group === "all" || group === "mine" || (group && numericId.test(group))
         ? group
         : "mine",
-    teacher: identityParts(teacher, "teacher") ? teacher : "all",
-    room: identityParts(room, "room") ? room : "all",
+    teacher:
+      numericId.test(teacher) || identityParts(teacher, "teacher")
+        ? teacher
+        : "all",
+    room: numericId.test(room) || identityParts(room, "room") ? room : "all",
   };
 }
 
@@ -75,6 +83,7 @@ export function filterLessons(
   rows: Lesson[],
   state: ScheduleState,
   ownGroup: string | null,
+  ownGroupId?: number | null,
 ) {
   return rows
     .filter(
@@ -82,10 +91,16 @@ export function filterLessons(
         (state.view === "week" || campusDay(row.starts_at) === state.date) &&
         (state.group === "all" ||
           (state.group === "mine"
-            ? row.group === ownGroup
+            ? ownGroupId != null
+              ? row.group_id === ownGroupId
+              : row.group === ownGroup
             : String(row.group_id) === state.group)) &&
-        (state.teacher === "all" || teacherKey(row) === state.teacher) &&
-        (state.room === "all" || roomKey(row) === state.room),
+        (state.teacher === "all" ||
+          teacherKey(row) === state.teacher ||
+          JSON.stringify(["teacher", row.teacher]) === state.teacher) &&
+        (state.room === "all" ||
+          roomKey(row) === state.room ||
+          JSON.stringify(["room", row.building, row.room]) === state.room),
     )
     .sort(
       (a, b) =>

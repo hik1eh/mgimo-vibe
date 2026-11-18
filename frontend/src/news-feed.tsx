@@ -6,7 +6,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Dialog } from "@base-ui/react/dialog";
 import {
   ArrowLeft,
@@ -47,6 +47,7 @@ export function announcementFact(item: Announcement) {
       old = lesson.changes.at(-1)?.before.room;
     return `${campusTime(lesson.starts_at)} · ${lesson.status === "cancelled" ? "Отменено" : old && old !== lesson.room ? `${old} → ${lesson.room}` : `ауд. ${lesson.room}`}`;
   }
+  if (item.fact) return item.fact;
   const hours = item.text.match(
     /\b\d{1,2}:\d{2}\s*(?:[–—-]|до)\s*\d{1,2}:\d{2}\b/u,
   )?.[0];
@@ -65,9 +66,11 @@ export function announcementFact(item: Announcement) {
 function NewsDetails({
   item,
   close,
+  rememberReturn,
 }: {
   item: Announcement;
   close: () => void;
+  rememberReturn: () => void;
 }) {
   const { data, error, reload } = useResource<Announcement>(
     `/announcements/${item.id}`,
@@ -115,7 +118,10 @@ function NewsDetails({
               <Link
                 className="primary"
                 to={lessonPath(data.lesson.id)}
-                onClick={close}
+                onClick={() => {
+                  rememberReturn();
+                  close();
+                }}
               >
                 Открыть занятие <ArrowRight aria-hidden="true" />
               </Link>
@@ -134,6 +140,20 @@ export function NewsFeed({
   rows: Announcement[];
   group?: string | null;
 }) {
+  const { key } = useLocation();
+  const historyKey = `dekanat.feed.${key}`;
+  const [saved] = useState<{ active: number | null; focus?: number }>(() => {
+    try {
+      const stored = JSON.parse(sessionStorage.getItem(historyKey) || "null");
+      return {
+        active: typeof stored?.active === "number" ? stored.active : null,
+        focus: typeof stored?.focus === "number" ? stored.focus : undefined,
+      };
+    } catch {
+      return { active: null };
+    }
+  });
+  const restoreFocus = useRef(saved.focus);
   const news = useMemo(
     () =>
       rows
@@ -149,7 +169,7 @@ export function NewsFeed({
     [rows],
   );
   const signature = news.map((item) => item.id).join(",");
-  const [activeId, setActiveId] = useState<number | null>(null);
+  const [activeId, setActiveId] = useState<number | null>(saved.active);
   const index = Math.max(
     0,
     news.findIndex((item) => item.id === activeId),
@@ -160,6 +180,13 @@ export function NewsFeed({
   const trigger = useRef<HTMLButtonElement | null>(null);
   const [selected, setSelected] = useState<Announcement | null>(null);
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(historyKey, JSON.stringify({ active: activeId }));
+    } catch {
+      /* Position is optional when storage is unavailable. */
+    }
+  }, [historyKey, activeId]);
   useEffect(() => {
     const close = () => setOpen(false);
     window.addEventListener("session-expired", close);
@@ -207,6 +234,13 @@ export function NewsFeed({
   };
   useLayoutEffect(() => {
     if (mobile && news.length) revealMobile(indexRef.current, false);
+    const returnTo = restoreFocus.current;
+    if (returnTo) {
+      viewport.current
+        ?.querySelector<HTMLButtonElement>(`[data-news-id="${returnTo}"]`)
+        ?.focus();
+      restoreFocus.current = undefined;
+    }
   }, [mobile, signature]);
   function move(delta: number) {
     if (news.length < 2) return;
@@ -311,6 +345,7 @@ export function NewsFeed({
                 <button
                   type="button"
                   className="news-tile"
+                  data-news-id={item.id}
                   data-active={current || undefined}
                   aria-haspopup="dialog"
                   aria-current={current ? "true" : undefined}
@@ -378,6 +413,19 @@ export function NewsFeed({
                   key={selected.id}
                   item={selected}
                   close={() => setOpen(false)}
+                  rememberReturn={() => {
+                    try {
+                      sessionStorage.setItem(
+                        historyKey,
+                        JSON.stringify({
+                          active: activeId,
+                          focus: selected.id,
+                        }),
+                      );
+                    } catch {
+                      /* Focus falls back to the page. */
+                    }
+                  }}
                 />
               )}
             </Dialog.Popup>

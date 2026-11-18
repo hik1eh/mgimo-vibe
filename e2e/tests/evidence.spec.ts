@@ -6,7 +6,7 @@ test("capture populated staff queue and the demo morning lesson", async ({
 }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await login(page, "staff.a");
-  await expect(page.locator(".staff-queue-table")).toBeVisible();
+  await expect(page.locator(".request-queue")).toBeVisible();
   await noOverflow(page);
   await page.screenshot({
     path: "/artifacts/after/staff-queue-1440.png",

@@ -1,6 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "./api";
 
+export function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(() => matchMedia(query).matches);
+  useEffect(() => {
+    const media = matchMedia(query);
+    const change = () => setMatches(media.matches);
+    change();
+    media.addEventListener("change", change);
+    return () => media.removeEventListener("change", change);
+  }, [query]);
+  return matches;
+}
+
 export function ErrorBox({ error }: { error: string }) {
   return error ? (
     <div className="error" role="alert">
@@ -9,9 +21,9 @@ export function ErrorBox({ error }: { error: string }) {
   ) : null;
 }
 
-export function useResource<T>(path: string, poll = false) {
+export function useResource<T>(path: string | null, poll = false) {
   const [state, setState] = useState<{
-    path: string;
+    path: string | null;
     data: T | null;
     error: string;
   }>({ path, data: null, error: "" });
@@ -22,6 +34,7 @@ export function useResource<T>(path: string, poll = false) {
     return () => window.removeEventListener("session-restored", reload);
   }, [reload]);
   useEffect(() => {
+    if (!path) return;
     let active = true;
     api<T>(path)
       .then((data) => {
@@ -35,11 +48,11 @@ export function useResource<T>(path: string, poll = false) {
     };
   }, [path, tick]);
   useEffect(() => {
-    if (poll) {
+    if (poll && path) {
       const timer = setInterval(reload, 15000);
       return () => clearInterval(timer);
     }
-  }, [poll, reload]);
+  }, [path, poll, reload]);
   return {
     data: state.path === path ? state.data : null,
     error: state.path === path ? state.error : "",

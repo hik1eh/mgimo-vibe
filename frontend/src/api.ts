@@ -5,8 +5,11 @@ export type User = {
   full_name: string;
   faculty: string;
   group: string | null;
+  group_id?: number | null;
   course: number | null;
   direction: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
 };
 export type Status = "accepted" | "in_progress" | "needs_info" | "ready";
 export type RequestRecord = {
@@ -33,7 +36,11 @@ export type RequestRecord = {
 export type Notice = {
   id: number;
   title: string;
-  request_id: number;
+  kind: "request" | "lesson" | "announcement";
+  request_id: number | null;
+  lesson_id: number | null;
+  announcement_id: number | null;
+  available: boolean;
   read: boolean;
   created_at: string;
 };
@@ -42,6 +49,7 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    public fields: Record<string, string> = {},
   ) {
     super(message);
   }
@@ -69,13 +77,27 @@ export async function api<T>(
   }
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    if (response.status === 401 && path !== "/auth/login" && path !== "/me")
+    if (
+      response.status === 401 &&
+      path !== "/auth/login" &&
+      !(path === "/me" && method === "GET")
+    )
       window.dispatchEvent(new Event("session-expired"));
     throw new ApiError(
       response.status,
       typeof body.detail === "string"
         ? body.detail
         : "Проверьте заполнение полей и повторите действие.",
+      Object.fromEntries(
+        (Array.isArray(body.detail) ? body.detail : []).flatMap(
+          (issue: { loc?: unknown[]; msg?: unknown }) => {
+            const field = Array.isArray(issue?.loc) ? issue.loc.at(-1) : null;
+            return typeof field === "string" && typeof issue.msg === "string"
+              ? [[field, issue.msg.replace(/^Value error, /, "")]]
+              : [];
+          },
+        ),
+      ),
     );
   }
   return response.status === 204 ? (undefined as T) : response.json();

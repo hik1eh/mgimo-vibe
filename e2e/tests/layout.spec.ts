@@ -100,6 +100,12 @@ test("keyboard feed controls, visible focus, empty day and semester", async ({
   await expect
     .poll(() => feed.evaluate((el) => el.scrollLeft))
     .toBeLessThanOrEqual(8);
+  const total = await page.locator(".news-tile").count();
+  await feed.focus();
+  await page.keyboard.press("ArrowLeft");
+  await expect(page.locator(".news-counter")).toHaveText(`${total} / ${total}`);
+  await page.keyboard.press("ArrowRight");
+  await expect(page.locator(".news-counter")).toHaveText(`1 / ${total}`);
   const bounds = (await feed.boundingBox())!;
   const touch = await page.context().newCDPSession(page);
   await touch.send("Emulation.setTouchEmulationEnabled", { enabled: true });
@@ -123,15 +129,7 @@ test("keyboard feed controls, visible focus, empty day and semester", async ({
     .toBeGreaterThan(10);
   await touch.send("Emulation.setTouchEmulationEnabled", { enabled: false });
   await touch.detach();
-  await feed.evaluate((el) =>
-    el.scrollTo({ left: el.scrollWidth, behavior: "instant" }),
-  );
-  const total = await page.locator(".news-tile").count();
-  await expect(page.locator(".news-counter")).toHaveText(`${total} / ${total}`);
-  await page
-    .getByRole("button", { name: "Следующее объявление", exact: true })
-    .click();
-  await expect(page.locator(".news-counter")).toHaveText(`1 / ${total}`);
+  await expect(page.locator(".news-counter")).not.toHaveText(`1 / ${total}`);
   await page.goto("/schedule?view=day&date=2026-11-15");
   await expect(
     page.getByRole("heading", { name: "Нет занятий", exact: true }),

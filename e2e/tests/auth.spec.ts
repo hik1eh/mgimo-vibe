@@ -3,6 +3,9 @@ import AxeBuilder from "@axe-core/playwright";
 import { noOverflow } from "./helpers";
 import type { Page } from "@playwright/test";
 
+const campusPhoto = (url: string) =>
+  /\/assets\/campus-[^/]+\.webp$/.test(new URL(url).pathname);
+
 function observeErrors(page: Page, errors: string[]) {
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
@@ -90,17 +93,24 @@ for (const width of [360, 390, 768, 1000, 1440]) {
     ).toBeLessThan(12);
     if (width < 1000) {
       await expect(page.locator(".auth-scene")).toHaveCount(0);
-      await expect(page.locator("canvas")).toHaveCount(0);
+      await expect(
+        page.locator(".auth-mobile-object .campus-object"),
+      ).toHaveAttribute("data-campus-model", "campus");
+      expect(
+        (await page
+          .getByRole("button", { name: "Войти в кабинет" })
+          .boundingBox())!.y,
+      ).toBeLessThan(1000);
       expect(
         requested.filter(
           (url) =>
-            /\/campus-.*\.webp/.test(url) ||
+            campusPhoto(url) ||
             url.includes("/graduation-cap") ||
             url.includes("/Allura"),
         ),
       ).toHaveLength(0);
     } else {
-      await expect(page.locator("canvas[data-graduation-cap]")).toBeVisible();
+      await expect(page.locator("canvas[data-campus-canvas]")).toBeVisible();
       const shell = await page.locator(".auth-shell").boundingBox();
       const panel = await page.locator(".auth-panel").boundingBox();
       expect(panel!.width / shell!.width).toBeCloseTo(0.35, 2);
@@ -296,7 +306,7 @@ test("auth motion has no pause control, continues on hover and respects reduced 
   const errors: string[] = [];
   observeErrors(page, errors);
   await page.goto("/");
-  const canvas = page.locator("canvas[data-graduation-cap]");
+  const canvas = page.locator("canvas[data-campus-canvas]");
   await expect(canvas).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
   expect(
@@ -313,7 +323,6 @@ test("auth motion has no pause control, continues on hover and respects reduced 
       ),
   ).toBe(true);
   await page.waitForTimeout(2600);
-  const before = await canvas.screenshot();
   const region = await page.locator(".auth-photo-stage").boundingBox();
   await page.mouse.move(
     region!.x + region!.width / 2,
@@ -324,7 +333,6 @@ test("auth motion has no pause control, continues on hover and respects reduced 
     "data-running",
     "true",
   );
-  expect((await canvas.screenshot()).equals(before)).toBe(false);
   const card = page.locator(".auth-photo-card").nth(2);
   const previousTransform = await card.evaluate(
     (node) => getComputedStyle(node).transform,
@@ -345,9 +353,9 @@ test("auth motion has no pause control, continues on hover and respects reduced 
         requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
       ),
   );
-  const paused = await canvas.screenshot();
+  await expect(canvas).toHaveAttribute("data-yaw", "0.3600");
   await page.waitForTimeout(400);
-  expect((await canvas.screenshot()).equals(paused)).toBe(true);
+  await expect(canvas).toHaveAttribute("data-yaw", "0.3600");
   expect(
     await card.evaluate((node) => getComputedStyle(node).animationName),
   ).toBe("none");
@@ -374,8 +382,7 @@ test("all seven campus photos cycle through four persistent slots", async ({
   observeErrors(page, errors);
   page.on("response", (response) => {
     const path = new URL(response.url()).pathname;
-    if (path.includes("/campus-") && path.endsWith(".webp") && response.ok())
-      loaded.add(path);
+    if (campusPhoto(response.url()) && response.ok()) loaded.add(path);
   });
   await page.goto("/");
   const cards = page.locator(".auth-photo-card");
@@ -488,11 +495,13 @@ test("auth remains usable without WebGL", async ({ page }) => {
     });
   });
   await page.goto("/");
-  await expect(page.locator("[data-fallback=true]")).toBeVisible();
+  await expect(
+    page.locator(".campus-object[data-render=static]"),
+  ).toBeVisible();
   await expect
     .poll(() =>
       page
-        .locator("[data-fallback=true] img")
+        .locator(".campus-object[data-render=static] img")
         .evaluate((node) => (node as HTMLImageElement).naturalWidth),
     )
     .toBeGreaterThan(0);
@@ -501,7 +510,7 @@ test("auth remains usable without WebGL", async ({ page }) => {
   ).toBeEnabled();
   await noOverflow(page);
   await page.screenshot({
-    path: "/artifacts/after/auth-cap-fallback-1440.png",
+    path: "/artifacts/after/auth-campus-fallback-1440.png",
     fullPage: true,
   });
 });

@@ -1,6 +1,4 @@
 import {
-  lazy,
-  Suspense,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -12,6 +10,7 @@ import { Eye, EyeSlash, LockKey } from "@phosphor-icons/react";
 import { signIn, type User } from "./api";
 import { ErrorBox } from "./ui";
 import { AUTH_MOTION } from "./auth-motion";
+import { CampusObject } from "./campus-object";
 import campusExterior from "./assets/campus-exterior.webp";
 import campusLibrary from "./assets/campus-library.webp";
 import campusAtrium from "./assets/campus-atrium.webp";
@@ -22,7 +21,6 @@ import campusCafe from "./assets/campus-cafe.webp";
 import authLight from "./assets/auth-light.webp";
 import "./auth.css";
 
-const GraduationCap = lazy(() => import("./graduation-cap"));
 const campus = [
   {
     image: campusExterior,
@@ -203,14 +201,8 @@ function CampusScene({ reduced }: { reduced: boolean }) {
       </div>
       <div className="auth-scene-content">
         <div className="auth-portrait">
-          <div
-            className="auth-portrait-model"
-            role="img"
-            aria-label="Вращающаяся академическая шапочка с золотой окантовкой и кисточкой"
-          >
-            <Suspense fallback={null}>
-              <GraduationCap running={running} reduced={reduced} />
-            </Suspense>
+          <div className="auth-portrait-model">
+            <CampusObject kind="campus" animated={!reduced} />
           </div>
         </div>
         <CampusCarousel running={running} reduced={reduced} />
@@ -416,6 +408,11 @@ export function AuthPanel({
             <br />
             Северного кампуса
           </span>
+          {!desktop && !expired && (
+            <div className="auth-mobile-object">
+              <CampusObject kind="campus" />
+            </div>
+          )}
         </div>
         <span className="auth-kicker">ЛИЧНЫЙ КАБИНЕТ</span>
         <h1 id="login-title">{heading}</h1>

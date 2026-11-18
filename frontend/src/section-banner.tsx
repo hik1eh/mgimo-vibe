@@ -1,43 +1,31 @@
 import { useLocation } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { useResource } from "./ui";
+import { CampusObject, type CampusModel } from "./campus-object";
 import type { StudyContext } from "./study-types";
-import campus from "./assets/banners/facade.webp";
-import stairs from "./assets/banners/atrium.webp";
-import library from "./assets/banners/library.webp";
-import services from "./assets/banners/student-services.webp";
 
-const banners = {
-  "/today": { title: "Сегодня", photo: campus, position: "center" },
-  "/schedule": { title: "Расписание", photo: stairs, position: "center 65%" },
-  "/academic-results": {
-    title: "Оценки",
-    photo: library,
-    position: "center 45%",
+type Banner = { title: string; subtitle?: string; model: CampusModel };
+
+const studentBanners: Record<string, Banner> = {
+  "/today": { title: "Сегодня", model: "campus" },
+  "/schedule": { title: "Расписание", model: "atrium" },
+  "/academic-results": { title: "Оценки", model: "record" },
+  "/requests": {
+    title: "Заявки",
+    subtitle: "Справки об обучении",
+    model: "letter",
   },
-  "/requests": { title: "Заявки", photo: services, position: "center" },
-} as const;
+  "/notifications": { title: "Уведомления", model: "bell" },
+  "/profile": { title: "Профиль", model: "clip" },
+};
 
-function BannerPhoto({ photo, position }: { photo: string; position: string }) {
-  const ref = useRef<HTMLImageElement>(null);
-  const [loaded, setLoaded] = useState(false);
-  useEffect(() => {
-    if (ref.current?.complete && ref.current.naturalWidth) setLoaded(true);
-  }, []);
-  return (
-    <div className="section-banner__visual" aria-hidden="true">
-      <img
-        ref={ref}
-        className="section-banner__photo"
-        src={photo}
-        alt=""
-        data-loaded={loaded || undefined}
-        onLoad={() => setLoaded(true)}
-        style={{ objectPosition: position }}
-      />
-    </div>
-  );
-}
+const staffBanners: Record<string, Banner> = {
+  "/requests": { title: "Очередь заявок", model: "archive" },
+  "/staff/schedule": { title: "Расписание факультета", model: "archive" },
+  "/staff/announcements": { title: "Объявления факультета", model: "archive" },
+  "/staff/academic-results": { title: "Успеваемость", model: "archive" },
+  "/profile": { title: "Профиль сотрудника", model: "clip" },
+};
 
 function TodayDate() {
   const { data } = useResource<StudyContext>("/study-context");
@@ -52,42 +40,67 @@ function TodayDate() {
   return (
     <p className="section-banner__date">
       <time dateTime={data.today}>
-        {label.charAt(0).toUpperCase() + label.slice(1)}
+        {label[0].toUpperCase() + label.slice(1)}
       </time>
     </p>
   );
 }
 
-export function SectionBanner() {
+export function SectionBanner({
+  staff,
+  faculty,
+  keyboard,
+}: {
+  staff: boolean;
+  faculty: string;
+  keyboard: boolean;
+}) {
   const { pathname } = useLocation();
-  const banner = banners[pathname as keyof typeof banners];
-  const entry = useRef({ path: pathname, shown: false, animate: false });
+  const banner = (staff ? staffBanners : studentBanners)[pathname];
+  const entry = useRef({
+    path: pathname,
+    seen: Boolean(banner),
+    animate: false,
+  });
   if (entry.current.path !== pathname) {
     entry.current = {
       path: pathname,
-      shown: entry.current.shown,
-      animate: Boolean(banner) && entry.current.shown,
+      seen: entry.current.seen || Boolean(banner),
+      animate: entry.current.seen,
     };
   }
-  if (banner) entry.current.shown = true;
   if (!banner) return null;
-  const study = pathname === "/today" || pathname === "/schedule";
+  const animate = entry.current.animate && !keyboard;
   return (
     <section
-      className={`section-banner ${study ? "study-banner" : ""}`}
+      className="section-banner campus-banner"
       data-section={pathname}
-      data-banner-entry={(study && entry.current.animate) || undefined}
+      data-staff={staff || undefined}
       aria-labelledby="section-title"
     >
-      <BannerPhoto
-        key={banner.photo}
-        photo={banner.photo}
-        position={banner.position}
-      />
-      <div key={pathname} className="section-banner__body">
-        <p className="section-banner__eyebrow">Светлый кампус</p>
-        <h1 id="section-title">{banner.title}</h1>
-        {pathname === "/today" && <TodayDate />}
+      <div className="campus-banner-inner">
+        <div
+          key={pathname}
+          className="campus-banner-title"
+          data-enter={animate || undefined}
+        >
+          <p className="campus-banner-eyebrow">
+            {staff ? "Кабинет сотрудника" : "Северный кампус"}
+          </p>
+          <h1 id="section-title">{banner.title}</h1>
+          {pathname === "/today" ? (
+            <TodayDate />
+          ) : (
+            (staff || banner.subtitle) && (
+              <p className="section-banner__date">
+                {staff ? faculty : banner.subtitle}
+              </p>
+            )
+          )}
+        </div>
+        <div className="campus-banner-object">
+          <CampusObject kind={banner.model} animated={animate} />
+        </div>
       </div>
     </section>
   );

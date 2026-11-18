@@ -10,6 +10,8 @@ import {
 import { campusDay, campusTime, dayLabel } from "./study-dates";
 import "./study.css";
 import { StudentSchedule } from "./schedule-view";
+import { RouteLink } from "./lesson-route";
+import { SemesterStories } from "./semester-stories";
 
 function ResourceError({
   error,
@@ -195,11 +197,24 @@ export function LessonPage() {
                 <dd>{lesson.teacher}</dd>
                 <dt>Корпус</dt>
                 <dd>{lesson.building}</dd>
+                {lesson.floor != null && (
+                  <>
+                    <dt>Этаж</dt>
+                    <dd>{lesson.floor}</dd>
+                  </>
+                )}
                 <dt>Аудитория</dt>
                 <dd>
                   <strong className="room-number">{lesson.room}</strong>
                 </dd>
               </dl>
+              <RouteLink
+                lesson={lesson}
+                search={params.size ? `?${params}` : ""}
+              />
+              {lesson.has_route === false && lesson.status !== "cancelled" && (
+                <p className="muted">Для этой аудитории пока нет плана.</p>
+              )}
               <Changes lesson={lesson} />
             </section>
             <section className="panel lesson-history">
@@ -247,12 +262,9 @@ export function ResultsPage() {
     `/academic-results${selected ? `?semester=${selected}` : ""}`,
     true,
   );
+  const next = data?.summary.next_control ?? data?.summary.next_credit;
   return (
     <>
-      <div className="section-intro">
-        <span className="eyebrow">УЧЁБА И СЕССИЯ</span>
-        <p>Ваши результаты, даты контроля и ближайший зачёт.</p>
-      </div>
       <ResourceError error={error} reload={reload} />
       {!data && !error && <p role="status">Загружаем результаты…</p>}
       {data && (
@@ -284,7 +296,7 @@ export function ResultsPage() {
               Обновить
             </button>
           </div>
-          <div className="academic-summary">
+          <div className="academic-summary mvp-academic-summary">
             <section className="panel progress-panel">
               <span className="eyebrow">ПРОГРЕСС СЕМЕСТРА</span>
               <h2>
@@ -299,17 +311,19 @@ export function ResultsPage() {
               <p>Учитываются полученные зачёты и экзамены с оценкой от 3.</p>
             </section>
             <section className="panel next-credit">
-              <span className="eyebrow">БЛИЖАЙШИЙ ЗАЧЁТ</span>
-              {data.summary.next_credit ? (
+              <span className="eyebrow">
+                {next?.kind === "exam"
+                  ? "БЛИЖАЙШИЙ ЭКЗАМЕН"
+                  : "БЛИЖАЙШИЙ ЗАЧЁТ"}
+              </span>
+              {next ? (
                 <>
-                  <h2>{data.summary.next_credit.subject}</h2>
+                  <h2>{next.subject}</h2>
                   <p>
-                    {dayLabel(campusDay(data.summary.next_credit.control_at))} ·{" "}
-                    {campusTime(data.summary.next_credit.control_at)}
+                    {dayLabel(campusDay(next.control_at))} ·{" "}
+                    {campusTime(next.control_at)}
                   </p>
-                  <span className="badge academic-upcoming">
-                    Предстоит зачёт
-                  </span>
+                  <span className="badge academic-upcoming">{next.label}</span>
                 </>
               ) : (
                 <>
@@ -333,6 +347,7 @@ export function ResultsPage() {
                 <p>Нет результатов, ожидающих публикации.</p>
               )}
             </section>
+            <SemesterStories key={data.semester} data={data} />
           </div>
           <section className="panel results-panel">
             <h2>Результаты по дисциплинам</h2>

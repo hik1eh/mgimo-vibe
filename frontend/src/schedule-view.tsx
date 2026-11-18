@@ -224,11 +224,13 @@ function CalendarContent({
   const groups = [
     ...new Map(rows.map((row) => [String(row.group_id), row.group])).entries(),
   ].sort((a, b) => a[1].localeCompare(b[1], "ru"));
-  const own = groups.find(([, label]) => label === user.group)?.[0];
+  const own = groups.find(([id, label]) =>
+    user.group_id != null ? id === String(user.group_id) : label === user.group,
+  )?.[0];
   // An empty week is not an authorization directory: keep the selected ID.
   // The server already limits every returned lesson to the user's scope.
   const effective = state;
-  const filtered = filterLessons(rows, effective, user.group);
+  const filtered = filterLessons(rows, effective, user.group, user.group_id);
   const query = scheduleParams(effective).toString();
   const teachers = [
     ...new Map(rows.map((row) => [teacherKey(row), row.teacher])).entries(),
@@ -370,8 +372,9 @@ function CalendarContent({
               {state.teacher !== "all" &&
                 !teachers.some(([key]) => key === state.teacher) && (
                   <option value={state.teacher}>
-                    {identityParts(state.teacher, "teacher")?.[1]} · нет в
-                    периоде
+                    {identityParts(state.teacher, "teacher")?.[1] ||
+                      "Преподаватель №" + state.teacher}{" "}
+                    · нет в периоде
                   </option>
                 )}
               {teachers.map(([key, label]) => (
@@ -395,7 +398,7 @@ function CalendarContent({
                     {identityParts(state.room, "room")
                       ?.slice(1)
                       .reverse()
-                      .join(" · ")}{" "}
+                      .join(" · ") || "Аудитория №" + state.room}{" "}
                     · нет в периоде
                   </option>
                 )}

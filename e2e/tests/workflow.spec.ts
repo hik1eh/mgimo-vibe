@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 import { login, noOverflow } from "./helpers";
 
 test("certificate UI end to end, clarification, notification, PDF and foreign denials", async ({
@@ -28,7 +29,10 @@ test("certificate UI end to end, clarification, notification, PDF and foreign de
   const number = (
     await (await page.request.get(`/api/v1/requests/${id}`)).json()
   ).number;
-  await staff.getByRole("link", { name: number, exact: true }).click();
+  await staff
+    .locator(".request-picker-row")
+    .filter({ hasText: number })
+    .click();
   await staff
     .getByRole("button", { name: "Взять в работу", exact: true })
     .click();
@@ -69,12 +73,16 @@ test("certificate UI end to end, clarification, notification, PDF and foreign de
     .click();
   await expect(page).toHaveURL(new RegExp(`/requests/${id}$`));
   const downloaded = page.waitForEvent("download");
-  await page
-    .getByRole("button", { name: "Скачать справку ↓", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Скачать PDF", exact: true }).click();
   const download = await downloaded;
   await download.saveAs("/artifacts/certificate-ui.pdf");
   expect(await download.failure()).toBeNull();
+  await expect(page.getByText("Демонстрационная справка скачана.")).toBeVisible();
+  const scan = await new AxeBuilder({ page })
+    .include(".ready-document .success")
+    .withRules(["color-contrast"])
+    .analyze();
+  expect(scan.violations).toEqual([]);
   await page.screenshot({
     path: "/artifacts/after/certificate-ready-360.png",
     fullPage: true,
@@ -168,6 +176,21 @@ test("staff UI changes lesson, publishes, edits and withdraws targeted announcem
     .click();
   await expect(a.locator(".room-number")).toHaveText("412");
   await expect(a.locator(".lesson-change")).toContainText("305");
+  await a.getByRole("link", { name: "Показать маршрут", exact: true }).click();
+  await expect(a.locator("main h1")).toHaveText("Маршрут до аудитории");
+  await expect(a.locator('[data-route-segment="1"]')).toBeVisible();
+  await a.getByRole("button", { name: /Подняться на 4-й этаж/ }).click();
+  await expect(a.locator('[data-route-segment="4"]')).toBeVisible();
+  await expect(a.getByText("Аудитория 412", { exact: true })).toBeVisible();
+  await a.goto("/notifications");
+  const unread = a.getByRole("link", { name: /^Уведомления, непрочитанных:/ });
+  await expect(unread).toBeVisible();
+  await a
+    .getByRole("button", {
+      name: /Занятие перенесено.*Консультация по социологии/,
+    })
+    .click();
+  await expect(a.locator(".room-number")).toHaveText("412");
   const bContext = await browser.newContext({
     baseURL: process.env.BASE_URL,
     locale: "ru-RU",

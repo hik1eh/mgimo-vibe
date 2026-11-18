@@ -1,85 +1,79 @@
 import { test, expect } from "@playwright/test";
 import { login, noOverflow } from "./helpers";
 
-test("first banner is immediate; later reveals, pointer feedback, keyboard and reduced motion remain usable", async ({
+test.use({
+  launchOptions: {
+    args: [
+      "--use-gl=angle",
+      "--use-angle=swiftshader",
+      "--enable-unsafe-swiftshader",
+    ],
+  },
+});
+
+test("WebGL campus changes perspective and the scene survives period and filter changes", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.emulateMedia({ reducedMotion: "no-preference" });
-  let release!: () => void;
-  const gate = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  await page.route("**/facade-*.webp", async (route) => {
-    await gate;
-    await route.continue();
-  });
   await login(page);
-  const photo = page.locator(".section-banner__photo");
-  await expect(photo).not.toHaveAttribute("data-loaded", "true");
-  await expect(page.locator("main h1")).toHaveText("Сегодня");
-  release();
-  await expect(photo).toHaveAttribute("data-loaded", "true");
-  const transition = await photo.evaluate((el) => ({
-    properties: getComputedStyle(el).transitionProperty,
-    duration: getComputedStyle(el).transitionDuration,
-  }));
-  expect(transition.duration).toBe("0s");
+  const model = page.locator(".campus-banner .campus-object");
+  await expect(model).toHaveAttribute("data-render", "webgl");
+  const canvas = model.locator("canvas");
+  await expect(canvas).toHaveAttribute("data-yaw", "0.3600");
+  expect(
+    await canvas.evaluate((node: HTMLCanvasElement) =>
+      Boolean(node.getContext("webgl2")),
+    ),
+  ).toBe(true);
+  expect(Number(await canvas.getAttribute("data-meshes"))).toBeGreaterThan(5);
+  const first = await canvas.screenshot({
+    path: "/artifacts/final-mvp/screens/campus-angle-a.png",
+  });
+  const box = (await model.boundingBox())!;
+  await page.mouse.move(box.x + box.width * 0.94, box.y + box.height * 0.5);
   await expect
-    .poll(() => photo.evaluate((el) => getComputedStyle(el).opacity))
-    .toBe("1");
+    .poll(async () => Number(await canvas.getAttribute("data-yaw")))
+    .toBeGreaterThan(0.44);
+  const second = await canvas.screenshot({
+    path: "/artifacts/final-mvp/screens/campus-angle-b.png",
+  });
+  expect(second.equals(first)).toBe(false);
+
   const tab = page.locator('header nav a[href="/schedule"]');
   await tab.hover();
   await expect
     .poll(() => tab.evaluate((el) => getComputedStyle(el, "::before").opacity))
     .toBe("1");
+  const nav = await page.locator("header nav").boundingBox();
+  await canvas.evaluate((el) => el.setAttribute("data-reused", "true"));
   await tab.click();
   await expect(page.locator("main h1")).toHaveText("Расписание");
-  await expect(photo).toHaveAttribute("data-loaded", "true");
-  expect(
-    await photo.evaluate((el) => getComputedStyle(el).transitionDuration),
-  ).toBe("0.32s, 0.32s");
-  const body = page.locator(".section-banner__body");
-  expect(
-    await body.evaluate((el) => getComputedStyle(el).transitionDuration),
-  ).toBe("0.26s, 0.26s");
-  await body.evaluate((el) => el.setAttribute("data-stability-check", "same"));
-  await photo.evaluate((el) => el.setAttribute("data-stability-check", "same"));
-  const headerBefore = await page.locator("header nav").boundingBox();
+  await expect(model).toHaveAttribute("data-campus-model", "atrium");
+  await expect(model).toHaveAttribute("data-render", "webgl");
+  await expect(canvas).toHaveAttribute("data-reused", "true");
+  await expect(canvas).toHaveAttribute("data-yaw", "0.3600");
+  const title = page.locator(".campus-banner-title");
+  await title.evaluate((el) => el.setAttribute("data-stable", "true"));
   await page.getByRole("button", { name: "Неделя", exact: true }).click();
-  await expect(body).toHaveAttribute("data-stability-check", "same");
-  await expect(photo).toHaveAttribute("data-stability-check", "same");
-  expect(await page.locator("header nav").boundingBox()).toEqual(headerBefore);
+  await page.getByLabel("Группа", { exact: true }).selectOption("all");
+  await expect(title).toHaveAttribute("data-stable", "true");
+  await expect(canvas).toHaveAttribute("data-yaw", "0.3600");
+  expect(await page.locator("header nav").boundingBox()).toEqual(nav);
+
   await page.locator('header nav a[href="/academic-results"]').focus();
   await page.keyboard.press("Enter");
-  await expect(page.locator(".cabinet-app")).toHaveAttribute(
-    "data-input",
-    "keyboard",
-  );
   await expect(page.locator("main h1")).toHaveText("Оценки");
-  await expect(page.locator(".section-banner__photo")).toHaveAttribute(
-    "data-loaded",
-    "true",
-  );
-  expect(
-    await page
-      .locator(".section-banner__photo")
-      .evaluate((el) => getComputedStyle(el).transitionDuration),
-  ).toBe("0s");
+  await expect(model).toHaveAttribute("data-render", "webgl");
+  await expect(title).not.toHaveAttribute("data-enter", "true");
+  expect(await canvas.evaluate((el) => el.getAnimations().length)).toBe(0);
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.locator('header nav a[href="/requests"]').click();
-  await expect(page.locator("main h1")).toHaveText("Заявки");
-  const reduced = page.locator(".section-banner__photo");
-  await expect(reduced).toHaveAttribute("data-loaded", "true");
-  expect(
-    await reduced.evaluate((el) => ({
-      duration: getComputedStyle(el).transitionDuration,
-      transform: getComputedStyle(el).transform,
-    })),
-  ).toEqual({ duration: "0s", transform: "none" });
+  const reducedBox = (await model.boundingBox())!;
+  await page.mouse.move(reducedBox.x + 8, reducedBox.y + 15);
+  await expect(canvas).toHaveAttribute("data-yaw", "0.3600");
 });
 
-test("study pages use the new palette and handwritten headings while other cabinet routes retain their theme", async ({
+test("main student sections share the campus palette and local Cyrillic headings", async ({
   page,
 }) => {
   await login(page);
@@ -92,37 +86,25 @@ test("study pages use the new palette and handwritten headings while other cabin
     "/profile",
   ]) {
     await page.goto(path);
-    await expect(page.locator("main h1")).toBeVisible();
-    const theme = await page.locator(".cabinet-app").evaluate((el) => ({
-      image: getComputedStyle(el).backgroundImage,
-      color: getComputedStyle(el).backgroundColor,
-    }));
-    if (["/today", "/schedule"].includes(path)) {
-      expect(theme).toEqual({ image: "none", color: "rgb(244, 246, 250)" });
-      expect(
-        await page
-          .locator("main h1")
-          .evaluate((el) => getComputedStyle(el).fontFamily),
-      ).toContain("Marck Script");
-      expect(
-        await page.evaluate(() =>
-          document.fonts
-            .load('400 70px "Marck Script"', "Сегодня Расписание")
-            .then((fonts) => fonts.length),
-        ),
-      ).toBeGreaterThan(0);
-    } else {
-      expect(theme.image).toContain("premium-surface-");
-    }
+    const heading = page.locator("main h1");
+    await expect(heading).toBeVisible();
+    await expect(heading).toHaveCount(1);
+    expect(
+      await heading.evaluate((el) => getComputedStyle(el).fontFamily),
+    ).toContain("Marck Script");
     expect(
       await page
         .locator(".cabinet-app")
-        .evaluate((el) => getComputedStyle(el).fontFamily),
-    ).toContain("Manrope");
+        .evaluate((el) => getComputedStyle(el).backgroundColor),
+    ).toBe("rgb(244, 246, 250)");
   }
-  await page.getByRole("button", { name: "Выйти", exact: true }).click();
-  await expect(page.getByLabel("Логин", { exact: true })).toBeVisible();
-  await expect(page.locator(".cabinet-app")).toHaveCount(0);
+  expect(
+    await page.evaluate(() =>
+      document.fonts
+        .load('400 70px "Marck Script"', "Сегодня Расписание Профиль")
+        .then((fonts) => fonts.length),
+    ),
+  ).toBeGreaterThan(0);
 });
 
 test("populated lesson keeps its time on one line across cabinet widths", async ({

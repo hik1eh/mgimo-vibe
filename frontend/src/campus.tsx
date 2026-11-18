@@ -1,16 +1,12 @@
-import { Link, useParams } from "react-router-dom";
-import {
-  statusLabels,
-  type User,
-  type Notice,
-  type RequestRecord,
-} from "./api";
+import { Link, NavLink, useParams } from "react-router-dom";
+import { statusLabels, type User, type RequestRecord } from "./api";
 import { NewsFeed } from "./news-feed";
 import type { AcademicPayload, Lesson, StudyContext } from "./study-types";
 import { addDays, campusDay, campusTime, dayLabel } from "./study-dates";
 import { ErrorBox, useResource } from "./ui";
 import { type Announcement, audienceLabel } from "./campus-types";
 import { LessonCard } from "./study";
+import { RouteLink } from "./lesson-route";
 import {
   Bell,
   User as UserIcon,
@@ -18,26 +14,28 @@ import {
   ArrowRight,
 } from "@phosphor-icons/react";
 
-export function StudentAccount() {
-  const { data } = useResource<Notice[]>("/notifications", true);
-  const unread = data?.filter((n) => !n.read).length || 0;
+export function StudentAccount({ unread }: { unread: number }) {
   return (
     <>
-      <Link
+      <NavLink
         className="account-link"
         to="/notifications"
         aria-label={`Уведомления${unread ? `, непрочитанных: ${unread}` : ""}`}
       >
         <span className="account-icon">
           <Bell size={23} weight="light" aria-hidden="true" />
-          {unread > 0 && <span className="unread-dot" aria-hidden="true" />}
+          {unread > 0 && (
+            <span className="unread-dot" aria-hidden="true">
+              {unread > 99 ? "99+" : unread}
+            </span>
+          )}
         </span>
         <span className="account-text">Уведомления</span>
-      </Link>
-      <Link className="account-link" to="/profile" aria-label="Профиль">
+      </NavLink>
+      <NavLink className="account-link" to="/profile" aria-label="Профиль">
         <UserIcon size={23} weight="light" aria-hidden="true" />
         <span className="account-text">Профиль</span>
-      </Link>
+      </NavLink>
     </>
   );
 }
@@ -172,6 +170,10 @@ function HomeStudy({ context }: { context: StudyContext }) {
               lesson={next}
               query={`date=${campusDay(next.starts_at)}`}
             />
+            <RouteLink
+              lesson={next}
+              search={`?date=${campusDay(next.starts_at)}`}
+            />
           </>
         ) : (
           <div className="empty">
@@ -192,7 +194,8 @@ export function TodayPage({ user }: { user: User }) {
   const requests = useResource<RequestRecord[]>("/requests", true);
   const context = useResource<StudyContext>("/study-context");
   const results = useResource<AcademicPayload>("/academic-results", true);
-  const credit = results.data?.summary.next_credit;
+  const credit =
+    results.data?.summary.next_control ?? results.data?.summary.next_credit;
   const records =
     requests.data
       ?.slice()
@@ -232,7 +235,11 @@ export function TodayPage({ user }: { user: User }) {
         {credit && (
           <Link className="overview-card" to="/academic-results">
             <CalendarBlank size={24} aria-hidden="true" />
-            <h2>Ближайший зачёт</h2>
+            <h2>
+              {credit.kind === "credit"
+                ? "Ближайший зачёт"
+                : "Ближайший экзамен"}
+            </h2>
             <strong>
               {dayLabel(campusDay(credit.control_at), true)},{" "}
               {campusTime(credit.control_at)}
@@ -318,7 +325,8 @@ export function AnnouncementsPage() {
 export function NotificationExtras() {
   const feed = useResource<Announcement[]>("/announcements", true);
   const results = useResource<AcademicPayload>("/academic-results", true);
-  const credit = results.data?.summary.next_credit;
+  const credit =
+    results.data?.summary.next_control ?? results.data?.summary.next_credit;
   return (
     <>
       <section className="panel">
@@ -336,7 +344,7 @@ export function NotificationExtras() {
               className="attention-card next-credit-attention"
               to="/academic-results"
             >
-              <span className="eyebrow">ПРЕДСТОИТ ЗАЧЁТ</span>
+              <span className="eyebrow">{credit.label}</span>
               <h3>{credit.subject}</h3>
               <p>
                 {dayLabel(campusDay(credit.control_at))} ·{" "}

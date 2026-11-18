@@ -17,6 +17,10 @@ export type Lesson = LessonSnapshot & {
   group: string;
   subject: string;
   teacher: string;
+  teacher_id?: number;
+  room_id?: number;
+  floor?: number | null;
+  has_route?: boolean;
   kind: string;
   status: "scheduled" | "moved" | "cancelled";
   version: number;
@@ -51,5 +55,6 @@ export type AcademicPayload = {
     total: number;
     awaiting: number;
     next_credit: AcademicResult | null;
+    next_control?: AcademicResult | null;
   };
 };

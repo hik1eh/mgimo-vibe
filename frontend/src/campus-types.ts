@@ -2,6 +2,7 @@ import type { Lesson } from "./study-types";
 export type Announcement = {
   id: number;
   title: string;
+  fact?: string | null;
   text: string;
   source: string;
   audience: "university" | "faculty" | "group";
