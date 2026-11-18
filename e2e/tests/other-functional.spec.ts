@@ -9,7 +9,7 @@ for (const width of [360, 1440]) {
     await page.setViewportSize({ width, height: 920 });
     await login(page);
     const nav = page.getByRole("navigation", { name: "Основная навигация" });
-    await expect(nav.getByRole("link")).toHaveText(["Сегодня", "Расписание", "Оценки", "Заявки"]);
+    await expect(nav.getByRole("link")).toHaveText(["Сегодня", "Расписание", "Успеваемость", "Заявки"]);
     const trigger = page.getByRole("button", { name: "Дополнительно" });
     const before = await nav.boundingBox();
     await trigger.focus();
@@ -102,7 +102,7 @@ for (const width of [360, 1440]) {
     try {
       const learner = await student.newPage();
       await login(learner);
-      await learner.getByRole("link", { name: "Оценки", exact: true }).click();
+      await learner.getByRole("link", { name: "Успеваемость", exact: true }).click();
       const scores = await (await learner.request.get("/api/v1/academic-results?semester=3")).json();
       const engagement = scores.engagement;
       expect(engagement[nextAttendance]).toBeGreaterThanOrEqual(1);

@@ -242,6 +242,9 @@
 }
 
 @media (max-width: 580px) {
+  .cabinet-app .cabinet-header nav.staff-nav a[href="/staff/academic-results"] {
+    font-size: clamp(9px, 2.55vw, 11px);
+  }
   .cabinet-app .student-header .brand {
     gap: 7px;
   }

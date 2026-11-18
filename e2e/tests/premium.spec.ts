@@ -63,7 +63,7 @@ test("WebGL campus changes perspective and the scene survives period and filter 
 
   await page.locator('header nav a[href="/academic-results"]').focus();
   await page.keyboard.press("Enter");
-  await expect(page.locator("main h1")).toHaveText("Оценки");
+  await expect(page.locator("main h1")).toHaveText("Успеваемость");
   await expect(model).toHaveAttribute("data-render", "webgl");
   await expect(title).not.toHaveAttribute("data-enter", "true");
   expect(await canvas.evaluate((el) => el.getAnimations().length)).toBe(0);
@@ -91,7 +91,8 @@ test("main student sections share the campus palette and local Cyrillic headings
     await expect(heading).toHaveCount(1);
     expect(
       await heading.evaluate((el) => getComputedStyle(el).fontFamily),
-    ).toContain("Marck Script");
+    ).toContain("Lora");
+    await expect(page.locator("main h1")).toHaveCSS("font-style", "italic");
     expect(
       await page
         .locator(".cabinet-app")
@@ -101,7 +102,7 @@ test("main student sections share the campus palette and local Cyrillic headings
   expect(
     await page.evaluate(() =>
       document.fonts
-        .load('400 70px "Marck Script"', "Сегодня Расписание Профиль")
+        .load('italic 550 70px "Lora"', "Сегодня Расписание Успеваемость Профиль")
         .then((fonts) => fonts.length),
     ),
   ).toBeGreaterThan(0);

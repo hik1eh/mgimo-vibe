@@ -11,7 +11,7 @@ type Banner = { title: string; subtitle?: string; model: CampusModel };
 const studentBanners: Record<string, Banner> = {
   "/today": { title: "Сегодня", model: "campus" },
   "/schedule": { title: "Расписание", model: "atrium" },
-  "/academic-results": { title: "Оценки", model: "record" },
+  "/academic-results": { title: "Успеваемость", model: "record" },
   "/requests": {
     title: "Заявки",
     subtitle: "Справки и обращения",

@@ -261,7 +261,7 @@ export function TodayPage({ user }: { user: User }) {
             </strong>
             <p>{credit.subject}</p>
             <span>
-              Открыть оценки <ArrowRight aria-hidden="true" />
+              К успеваемости <ArrowRight aria-hidden="true" />
             </span>
           </Link>
         )}

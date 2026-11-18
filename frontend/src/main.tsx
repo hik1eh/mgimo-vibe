@@ -148,7 +148,7 @@ function Cabinet({
             <>
               <NavLink to="/today">Сегодня</NavLink>
               <NavLink to="/schedule">Расписание</NavLink>
-              <NavLink to="/academic-results">Оценки</NavLink>
+              <NavLink to="/academic-results">Успеваемость</NavLink>
             </>
           )}
           {!teacher && <NavLink to="/requests">Заявки</NavLink>}
@@ -156,7 +156,7 @@ function Cabinet({
             <>
               <NavLink to="/staff/announcements">Объявления</NavLink>
               <NavLink to="/staff/schedule">Расписание</NavLink>
-              <NavLink to="/staff/academic-results">Оценки</NavLink>
+              <NavLink to="/staff/academic-results">Успеваемость</NavLink>
               <NavLink to="/profile">Профиль</NavLink>
             </>
           )}

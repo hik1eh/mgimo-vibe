@@ -4,7 +4,7 @@ import { login, noOverflow } from "./helpers";
 const sections = [
   ["/today", "Сегодня", "campus"],
   ["/schedule", "Расписание", "atrium"],
-  ["/academic-results", "Оценки", "record"],
+  ["/academic-results", "Успеваемость", "record"],
   ["/requests", "Заявки", "letter"],
   ["/notifications", "Уведомления", "bell"],
   ["/profile", "Информация о студенте", "clip"],

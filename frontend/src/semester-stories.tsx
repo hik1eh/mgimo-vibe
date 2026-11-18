@@ -175,7 +175,7 @@ export function SemesterStories({ data }: { data: AcademicPayload }) {
                 </button>
               ) : (
                 <Dialog.Close className="story-next">
-                  К оценкам <CheckCircle size={18} aria-hidden="true" />
+                  К успеваемости <CheckCircle size={18} aria-hidden="true" />
                 </Dialog.Close>
               )}
             </footer>

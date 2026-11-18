@@ -1,9 +1,9 @@
 @font-face {
-  font-family: "Marck Script";
-  src: url("./assets/fonts/MarckScript-Regular.ttf") format("truetype");
+  font-family: "Lora";
+  src: url("./assets/fonts/Lora-Italic.ttf") format("truetype");
   font-display: swap;
-  font-style: normal;
-  font-weight: 400;
+  font-style: italic;
+  font-weight: 400 700;
 }
 .cabinet-app[data-student-screen] {
   --surface: #fff;
@@ -48,10 +48,11 @@
   padding: 24px 53% 24px max(24px, calc((100vw - 1192px) / 2));
 }
 .cabinet-app[data-student-screen] .study-banner h1 {
-  font-family: "Marck Script", cursive;
+  font-family: "Lora", Georgia, serif;
   font-size: clamp(60px, 6vw, 82px);
-  font-weight: 400;
-  letter-spacing: 0;
+  font-style: italic;
+  font-weight: 550;
+  letter-spacing: -0.035em;
   line-height: 1.15;
 }
 .cabinet-app[data-student-screen] .study-banner .section-banner__eyebrow {
