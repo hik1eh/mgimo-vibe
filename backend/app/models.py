@@ -40,6 +40,8 @@ class User(Base):
     group_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     direction: Mapped[str | None] = mapped_column(String(160), nullable=True)
     course: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    contact_email: Mapped[str | None] = mapped_column(String(254))
+    contact_phone: Mapped[str | None] = mapped_column(String(32))
 
 
 class LoginSession(Base):
@@ -92,9 +94,20 @@ class Document(Base):
 
 class Notification(Base):
     __tablename__ = 'notifications'
+    __table_args__ = (
+        CheckConstraint(
+            "(kind='request' AND request_id IS NOT NULL AND lesson_id IS NULL AND announcement_id IS NULL) OR "
+            "(kind='lesson' AND request_id IS NULL AND lesson_id IS NOT NULL AND announcement_id IS NULL) OR "
+            "(kind='announcement' AND request_id IS NULL AND lesson_id IS NULL AND announcement_id IS NOT NULL)",
+            name='notification_target',
+        ),
+    )
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
-    request_id: Mapped[int] = mapped_column(ForeignKey('requests.id'))
+    kind: Mapped[str] = mapped_column(String(20), default='request')
+    request_id: Mapped[int | None] = mapped_column(ForeignKey('requests.id'))
+    lesson_id: Mapped[int | None] = mapped_column(ForeignKey('lessons.id', name='notification_lesson_fk'))
+    announcement_id: Mapped[int | None] = mapped_column(ForeignKey('announcements.id', name='notification_announcement_fk'))
     title: Mapped[str] = mapped_column(String(200))
     read: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
@@ -105,6 +118,22 @@ class StudyScenario(Base):
     __table_args__ = (CheckConstraint('id = 1', name='single_study_scenario'),)
     id: Mapped[int] = mapped_column(primary_key=True)
     reference_date: Mapped[date] = mapped_column(Date)
+
+
+class Teacher(Base):
+    __tablename__ = 'teachers'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(180))
+
+
+class CampusRoom(Base):
+    __tablename__ = 'campus_rooms'
+    __table_args__ = (UniqueConstraint('building', 'number', name='campus_room_place'),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    building: Mapped[str] = mapped_column(String(120))
+    number: Mapped[str] = mapped_column(String(40))
+    floor: Mapped[int | None] = mapped_column(Integer)
+    map_node: Mapped[str | None] = mapped_column(String(40), unique=True)
 
 
 class Lesson(Base):
@@ -118,12 +147,13 @@ class Lesson(Base):
     demo_key: Mapped[str | None] = mapped_column(String(80), unique=True, nullable=True)
     group_id: Mapped[int] = mapped_column(ForeignKey('groups.id'), index=True)
     subject: Mapped[str] = mapped_column(String(180))
-    teacher: Mapped[str] = mapped_column(String(180))
+    teacher_id: Mapped[int] = mapped_column(ForeignKey('teachers.id', name='lesson_teacher_fk'))
+    instructor: Mapped[Teacher] = relationship()
     kind: Mapped[str] = mapped_column(String(50))
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    building: Mapped[str] = mapped_column(String(120))
-    room: Mapped[str] = mapped_column(String(40))
+    room_id: Mapped[int] = mapped_column(ForeignKey('campus_rooms.id', name='lesson_room_fk'))
+    place: Mapped[CampusRoom] = relationship()
     status: Mapped[str] = mapped_column(String(20), default='scheduled')
     version: Mapped[int] = mapped_column(Integer, default=1)
     __mapper_args__ = {'version_id_col': version}
@@ -180,6 +210,7 @@ class Announcement(Base):
     idempotency_key: Mapped[str | None] = mapped_column(String(36), nullable=True)
     create_digest: Mapped[str | None] = mapped_column(String(64), nullable=True)
     title: Mapped[str] = mapped_column(String(160))
+    fact: Mapped[str | None] = mapped_column(String(140))
     text: Mapped[str] = mapped_column(Text)
     source: Mapped[str] = mapped_column(String(180))
     audience: Mapped[str] = mapped_column(String(20))

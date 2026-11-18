@@ -1,11 +1,12 @@
 from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session, selectinload
 from .db import get_db
-from .models import AcademicResult, Lesson, StudyScenario
-from .security import student
+from .models import AcademicResult, Group, Lesson, StudyScenario, User
+from .security import student, staff
+from .campus_map import route_segments
 
 MOSCOW = ZoneInfo('Europe/Moscow')
 router = APIRouter(prefix='/api/v1')
@@ -26,8 +27,10 @@ def study_context(user=Depends(student), db: Session = Depends(get_db)):
 
 def lesson_data(lesson):
     return dict(id=lesson.id, group_id=lesson.group_id, group=lesson.group.name, subject=lesson.subject,
-        teacher=lesson.teacher, kind=lesson.kind, starts_at=lesson.starts_at,
-        ends_at=lesson.ends_at, building=lesson.building, room=lesson.room,
+        teacher=lesson.instructor.name, teacher_id=lesson.teacher_id, kind=lesson.kind, starts_at=lesson.starts_at,
+        ends_at=lesson.ends_at, building=lesson.place.building, room=lesson.place.number,
+        room_id=lesson.room_id, floor=lesson.place.floor,
+        has_route=lesson.status != 'cancelled' and lesson.place.map_node is not None,
         status=lesson.status, version=lesson.version,
         changes=[dict(id=c.id, before=c.before, after=c.after, reason=c.reason,
                       created_at=c.created_at) for c in lesson.changes])
@@ -42,18 +45,30 @@ def schedule(start: date | None = None, end: date | None = None,
         raise HTTPException(422, 'Выберите диапазон от 1 до 31 дня.')
     since = datetime.combine(start, time.min, MOSCOW)
     until = datetime.combine(end + timedelta(days=1), time.min, MOSCOW)
-    lessons = db.scalars(select(Lesson).options(selectinload(Lesson.group), selectinload(Lesson.changes))
+    lessons = db.scalars(select(Lesson).options(selectinload(Lesson.group), selectinload(Lesson.changes),
+        selectinload(Lesson.instructor), selectinload(Lesson.place))
         .where(Lesson.group_id == user.group_id, Lesson.starts_at >= since, Lesson.starts_at < until)
         .order_by(Lesson.starts_at, Lesson.id))
     return [lesson_data(lesson) for lesson in lessons]
 
 
-@router.get('/schedule/{lesson_id}')
-def lesson_detail(lesson_id: int, user=Depends(student), db: Session = Depends(get_db)):
+def student_lesson(lesson_id, user, db):
     lesson = db.scalar(select(Lesson).where(Lesson.id == lesson_id, Lesson.group_id == user.group_id))
     if not lesson:
         raise HTTPException(404, 'Занятие недоступно.')
-    return lesson_data(lesson)
+    return lesson
+
+
+@router.get('/schedule/{lesson_id}')
+def lesson_detail(lesson_id: int, user=Depends(student), db: Session = Depends(get_db)):
+    return lesson_data(student_lesson(lesson_id, user, db))
+
+
+@router.get('/schedule/{lesson_id}/route')
+def lesson_route(lesson_id: int, user=Depends(student), db: Session = Depends(get_db)):
+    lesson = student_lesson(lesson_id, user, db)
+    return dict(lesson=lesson_data(lesson),
+                segments=route_segments(lesson.place) if lesson.status != 'cancelled' else [])
 
 
 def result_data(row):
@@ -81,11 +96,34 @@ def academic_results(semester: int | None = Query(default=None, ge=1, le=12),
         AcademicResult.semester == selected).order_by(AcademicResult.control_at, AcademicResult.id)).all() if selected else []
     results = [result_data(row) for row in rows]
     today = reference_date(db)
-    upcoming = [r for r in results if r['kind'] == 'credit' and r['status'] == 'upcoming'
+    upcoming = [r for r in results if r['status'] == 'upcoming'
                 and r['control_at'].astimezone(MOSCOW).date() >= today]
     control_days = [row.control_at.astimezone(MOSCOW).date() for row in rows]
     period = dict(start=min(control_days), end=max(control_days)) if control_days else None
     return dict(semesters=semesters, semester=selected, as_of=today, results=results, session_period=period,
         summary=dict(closed=sum(r['passed'] for r in results), total=len(results),
                      awaiting=sum(r['status'] == 'awaiting' for r in results),
-                     next_credit=upcoming[0] if upcoming else None))
+                     next_credit=next((r for r in upcoming if r['kind'] == 'credit'), None),
+                     next_control=upcoming[0] if upcoming else None))
+
+
+@router.get('/staff/academic-results')
+def staff_academic_results(group_id: int | None = Query(default=None, ge=1),
+                           user=Depends(staff), db: Session = Depends(get_db)):
+    groups = db.scalars(select(Group).where(Group.faculty_id == user.faculty_id).order_by(Group.name)).all()
+    if group_id is not None and group_id not in {group.id for group in groups}:
+        raise HTTPException(404, 'Группа недоступна.')
+    group_fields = (Group.id, Group.name, AcademicResult.semester, AcademicResult.subject, AcademicResult.kind)
+    stmt = (select(*group_fields, func.count().label('total'),
+                   func.count().filter(AcademicResult.status == 'published').label('published'),
+                   func.count().filter(AcademicResult.status == 'awaiting').label('awaiting'))
+            .select_from(AcademicResult).join(User, AcademicResult.student_id == User.id).join(Group, User.group_id == Group.id)
+            .where(Group.faculty_id == user.faculty_id, User.role == 'student')
+            .group_by(*group_fields)
+            .order_by(Group.name, AcademicResult.semester.desc(), AcademicResult.subject))
+    if group_id is not None:
+        stmt = stmt.where(Group.id == group_id)
+    return dict(groups=[dict(id=g.id, name=g.name) for g in groups],
+                subjects=[dict(group_id=r.id, group=r.name, semester=r.semester, subject=r.subject,
+                               kind=r.kind, published=r.published, awaiting=r.awaiting, total=r.total)
+                          for r in db.execute(stmt)])

@@ -3,11 +3,12 @@ from sqlalchemy import select
 from .config import settings
 from .models import StudyScenario, Lesson, LessonChange, AcademicResult, User
 from .study import MOSCOW
+from .campus_map import room_for, teacher_for
 
 
 def snapshot(lesson):
     return dict(starts_at=lesson.starts_at.isoformat(), ends_at=lesson.ends_at.isoformat(),
-                building=lesson.building, room=lesson.room, status=lesson.status)
+                building=lesson.place.building, room=lesson.place.number, status=lesson.status)
 
 
 def seed_study(db, demo_date=None):
@@ -32,8 +33,8 @@ def seed_study(db, demo_date=None):
         if db.scalar(select(Lesson.id).where(Lesson.demo_key == key)):
             continue
         starts = datetime.combine(day, time(hour), MOSCOW)
-        lesson = Lesson(demo_key=key, group_id=user.group_id, subject=subject, teacher=teacher,
-            kind=kind, building=building, room=room, status=status,
+        lesson = Lesson(demo_key=key, group_id=user.group_id, subject=subject, instructor=teacher_for(db, teacher),
+            kind=kind, place=room_for(db, building, room), status=status,
             starts_at=starts, ends_at=starts + timedelta(minutes=90))
         db.add(lesson)
         db.flush()

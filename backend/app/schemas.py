@@ -1,11 +1,32 @@
+import re
 from typing import Literal
 from uuid import UUID
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class LoginIn(BaseModel):
     login: str = Field(min_length=1, max_length=80)
     password: str = Field(min_length=1, max_length=200)
+
+
+class ContactsIn(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra='forbid')
+    contact_email: str | None = Field(max_length=254)
+    contact_phone: str | None = Field(max_length=32)
+
+    @field_validator('contact_email')
+    @classmethod
+    def email(cls, value):
+        if value and not re.fullmatch(r'[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+', value):
+            raise ValueError('Укажите корректный адрес электронной почты.')
+        return value or None
+
+    @field_validator('contact_phone')
+    @classmethod
+    def phone(cls, value):
+        if value and (not re.fullmatch(r'\+?[0-9 ()-]+', value) or not 7 <= sum(c.isdigit() for c in value) <= 15):
+            raise ValueError('Укажите телефон с 7–15 цифрами.')
+        return value or None
 
 
 class RequestIn(BaseModel):

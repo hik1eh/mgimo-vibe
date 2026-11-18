@@ -3,20 +3,20 @@ from datetime import timedelta
 from fastapi import FastAPI, APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import StaleDataError
 from .config import settings, ROOT
 from .db import get_db
-from .models import (User, Faculty, Group, LoginSession, CertificateRequest as CR,
+from .models import (User, Faculty, Group, LoginSession, Lesson, Announcement, CertificateRequest as CR,
                      RequestEvent, Document, Notification, now)
-from .schemas import LoginIn, RequestIn, TransitionIn, ReplyIn
+from .schemas import ContactsIn, LoginIn, RequestIn, TransitionIn, ReplyIn
 from .security import (COOKIE, passwords, DUMMY_HASH, digest, current_session, current_user,
                        student, staff, csrf, require_origin, new_session)
 from .pdf import certificate
 from .study import router as study_router
-from .campus import router as campus_router
+from .campus import router as campus_router, visible_announcements
 
 app = FastAPI(title='Цифровой деканат — конкурсный прототип', version='0.1.0')
 api = APIRouter(prefix='/api/v1')
@@ -41,12 +41,15 @@ def save(db):
         raise HTTPException(409, 'Заявка уже изменена. Обновите карточку.')
 
 
-def profile(user, db):
+def profile(user, db, contacts=False):
     faculty = db.get(Faculty, user.faculty_id)
     group = db.get(Group, user.group_id) if user.group_id else None
-    return dict(id=user.id, login=user.login, role=user.role, full_name=user.full_name,
+    data = dict(id=user.id, login=user.login, role=user.role, full_name=user.full_name,
         faculty=faculty.name, group=group.name if group else None,
-        course=user.course, direction=user.direction)
+        group_id=user.group_id, course=user.course, direction=user.direction)
+    if contacts:
+        data.update(contact_email=user.contact_email, contact_phone=user.contact_phone)
+    return data
 
 
 def request_data(req, db, detail=False):
@@ -56,7 +59,7 @@ def request_data(req, db, detail=False):
     if detail:
         data['events'] = [dict(id=e.id, kind=e.kind, text=e.text, created_at=e.created_at,
             actor=e.actor.full_name, role=e.actor.role) for e in req.events]
-        data['document_url'] = f'/api/v1/requests/{req.id}/document' if req.status == 'ready' else None
+        data['document_url'] = f'/api/v1/requests/{req.id}/document' if req.status == 'ready' and db.get(Document, req.id) else None
     return data
 
 
@@ -122,7 +125,7 @@ def login(data: LoginIn, request: Request, response: Response, db: Session = Dep
     response.set_cookie(COOKIE, token, httponly=True, secure=settings.cookie_secure,
         samesite='lax', max_age=settings.session_hours * 3600, path='/')
     response.delete_cookie('dekanat_pre_csrf', path='/')
-    return {'user': profile(user, db), 'csrf_token': session.csrf}
+    return {'user': profile(user, db, contacts=True), 'csrf_token': session.csrf}
 
 
 @api.post('/auth/logout', status_code=204, dependencies=[Depends(csrf)])
@@ -134,7 +137,15 @@ def logout(response: Response, session=Depends(current_session), db: Session = D
 
 @api.get('/me')
 def me(user=Depends(current_user), db: Session = Depends(get_db)):
-    return profile(user, db)
+    return profile(user, db, contacts=True)
+
+
+@api.patch('/me/contacts', dependencies=[Depends(csrf)])
+def edit_contacts(data: ContactsIn, user=Depends(student), db: Session = Depends(get_db)):
+    user.contact_email = data.contact_email
+    user.contact_phone = data.contact_phone
+    db.commit()
+    return profile(user, db, contacts=True)
 
 
 @api.get('/requests')
@@ -196,10 +207,13 @@ def reply(request_id: int, data: ReplyIn, user=Depends(student), db: Session = D
 
 
 @api.get('/staff/requests')
-def staff_requests(q: str = '', status: str = '', user=Depends(staff), db: Session = Depends(get_db)):
+def staff_requests(q: str = '', status: str = '', group_id: int | None = None,
+                   user=Depends(staff), db: Session = Depends(get_db)):
     stmt = select(CR).join(User, CR.student_id == User.id).where(User.faculty_id == user.faculty_id)
     if status:
         stmt = stmt.where(CR.status == status)
+    if group_id is not None:
+        stmt = stmt.where(User.group_id == group_id)
     rows = db.scalars(stmt.order_by(CR.id.desc()))
     return [request_data(r, db) for r in rows if q.strip().lower() in r.number.lower()]
 
@@ -231,8 +245,19 @@ def transition(request_id: int, data: TransitionIn, user=Depends(staff), db: Ses
     return request_data(req, db, True)
 
 
-def notification_data(n):
-    return dict(id=n.id, title=n.title, request_id=n.request_id, read=n.read, created_at=n.created_at)
+def notification_data(n, user, db):
+    title = n.title
+    available = True
+    if n.kind == 'announcement':
+        announcement = db.scalar(visible_announcements(user).where(Announcement.id == n.announcement_id))
+        title = announcement.title if announcement else 'Объявление недоступно'
+        available = announcement is not None
+    elif n.kind == 'lesson':
+        lesson = db.get(Lesson, n.lesson_id)
+        available = lesson is not None and lesson.group_id == user.group_id
+        title = f'{title} · {lesson.subject}' if available else 'Занятие недоступно'
+    return dict(id=n.id, title=title, kind=n.kind, request_id=n.request_id, lesson_id=n.lesson_id,
+                announcement_id=n.announcement_id, available=available, read=n.read, created_at=n.created_at)
 
 
 def own_notification(notification_id, user, db):
@@ -244,12 +269,19 @@ def own_notification(notification_id, user, db):
 
 @api.get('/notifications')
 def notifications(user=Depends(student), db: Session = Depends(get_db)):
-    return [notification_data(n) for n in db.scalars(select(Notification).where(Notification.user_id == user.id).order_by(Notification.id.desc()))]
+    return [notification_data(n, user, db) for n in db.scalars(select(Notification).where(
+        Notification.user_id == user.id).order_by(Notification.created_at.desc(), Notification.id.desc()))]
+
+
+@api.post('/notifications/read-all', status_code=204, dependencies=[Depends(csrf)])
+def read_notifications(user=Depends(student), db: Session = Depends(get_db)):
+    db.execute(update(Notification).where(Notification.user_id == user.id, Notification.read.is_(False)).values(read=True))
+    db.commit()
 
 
 @api.get('/notifications/{notification_id}')
 def get_notification(notification_id: int, user=Depends(student), db: Session = Depends(get_db)):
-    return notification_data(own_notification(notification_id, user, db))
+    return notification_data(own_notification(notification_id, user, db), user, db)
 
 
 @api.patch('/notifications/{notification_id}', dependencies=[Depends(csrf)])
@@ -257,7 +289,7 @@ def read_notification(notification_id: int, user=Depends(student), db: Session =
     n = own_notification(notification_id, user, db)
     n.read = True
     db.commit()
-    return notification_data(n)
+    return notification_data(n, user, db)
 
 
 app.include_router(api)

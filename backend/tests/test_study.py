@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from app.db import SessionLocal
 from app.models import AcademicResult, Lesson, LessonChange, StudyScenario, User
 from app.seed import seed
+from app.campus_map import room_for, teacher_for
 
 MOSCOW = ZoneInfo('Europe/Moscow')
 WEEK = '?start=2026-11-09&end=2026-11-15'
@@ -41,12 +42,14 @@ def test_moscow_day_boundaries(signed):
     a = signed('student.a')
     with SessionLocal() as db:
         user = db.scalar(select(User).where(User.login == 'student.a'))
+        instructor = teacher_for(db, 'Нина Озёрная')
+        place = room_for(db, 'Северный корпус', '101')
         ids = []
         for day, hour, minute in [(12, 23, 30), (13, 0, 15), (13, 23, 30), (14, 0, 15)]:
             start = datetime(2026, 11, day, hour, minute, tzinfo=MOSCOW)
-            row = Lesson(group_id=user.group_id, subject='Пограничная консультация', teacher='Нина Озёрная',
+            row = Lesson(group_id=user.group_id, subject='Пограничная консультация', instructor=instructor,
                          kind='Консультация', starts_at=start, ends_at=start + timedelta(minutes=20),
-                         building='Северный корпус', room='101')
+                         place=place)
             db.add(row)
             db.flush()
             ids.append(row.id)
@@ -91,7 +94,7 @@ def test_results_scope_summary_labels_and_semesters(signed):
     assert result['summary']['next_credit']['label'] == 'Предстоит зачёт'
     assert any(r['label'] == 'Зачёт получен' for r in result['results'])
     previous = a.get('/api/v1/academic-results?semester=2').json()
-    assert previous['summary'] == dict(closed=1, total=1, awaiting=0, next_credit=None)
+    assert previous['summary'] == dict(closed=1, total=1, awaiting=0, next_credit=None, next_control=None)
     assert previous['results'][0]['subject'] == 'Иностранный язык'
     empty = a.get('/api/v1/academic-results?semester=9').json()
     assert empty['results'] == [] and empty['summary']['total'] == 0
@@ -151,7 +154,7 @@ def test_invalid_lesson_time_rejected():
 def test_study_seed_preserves_date_changes_and_counts(database):
     with SessionLocal() as db:
         consultation = db.scalar(select(Lesson).where(Lesson.demo_key == 'a-consultation'))
-        consultation.room = '501'
+        consultation.place = room_for(db, 'Северный корпус', '501')
         result = db.scalar(select(AcademicResult).where(AcademicResult.demo_key == 'a-exam'))
         result.grade = 3
         db.commit()
@@ -160,4 +163,4 @@ def test_study_seed_preserves_date_changes_and_counts(database):
         assert db.scalar(select(func.count()).select_from(Lesson)) == 7
         assert db.scalar(select(func.count()).select_from(LessonChange)) == 2
         assert db.scalar(select(func.count()).select_from(AcademicResult)) == 10
-        assert consultation.room == '501' and result.grade == 3
+        assert consultation.place.number == '501' and result.grade == 3

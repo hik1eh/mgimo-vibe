@@ -7,11 +7,12 @@ from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import StaleDataError
 from .db import get_db
-from .models import Announcement, Group, Lesson, LessonChange, now
+from .models import Announcement, Group, Lesson, LessonChange, Notification, Teacher, User, now
 from .security import student, staff, csrf
 from .study import lesson_data, reference_date, MOSCOW
 from .study_seed import snapshot
 from .campus_schemas import AnnouncementCreate, AnnouncementEdit, LessonEdit
+from .campus_map import room_for
 
 router = APIRouter(prefix='/api/v1')
 
@@ -25,7 +26,7 @@ def commit(db):
 
 
 def announcement_data(row):
-    return dict(id=row.id, title=row.title, text=row.text, source=row.source,
+    return dict(id=row.id, title=row.title, fact=row.fact, text=row.text, source=row.source,
         audience=row.audience, faculty_id=row.faculty_id, group_id=row.group_id,
         lesson_id=row.lesson_id, status=row.status, pinned=row.pinned,
         published_at=row.published_at, expires_at=row.expires_at, version=row.version,
@@ -98,7 +99,19 @@ def assign_fields(row, data):
         raise HTTPException(422, 'Окончание показа должно быть позже публикации.')
     for field in ['title', 'text', 'audience', 'group_id', 'lesson_id', 'status', 'pinned', 'expires_at']:
         setattr(row, field, getattr(data, field))
+    if 'fact' in data.model_fields_set:
+        row.fact = data.fact or None
     row.published_at = published
+
+
+def announce_publication(db, row):
+    db.flush()
+    recipients = select(User.id).where(User.active, User.role == 'student', User.faculty_id == row.faculty_id)
+    if row.audience == 'group':
+        recipients = recipients.where(User.group_id == row.group_id)
+    for user_id in db.scalars(recipients):
+        db.add(Notification(user_id=user_id, kind='announcement', announcement_id=row.id,
+                            title='Новое объявление деканата'))
 
 
 @router.get('/staff/groups')
@@ -137,6 +150,8 @@ def create_announcement(data: AnnouncementCreate, user=Depends(staff), db: Sessi
     assign_fields(row, data)
     db.add(row)
     try:
+        if row.status == 'published':
+            announce_publication(db, row)
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -153,8 +168,16 @@ def edit_announcement(announcement_id: int, data: AnnouncementEdit, user=Depends
     if row.version != data.version:
         raise HTTPException(409, 'Объявление уже изменено. Обновите страницу.')
     validate_target(data, user, db)
+    notify = data.status == 'published' and (
+        row.status != 'published' or (row.audience, row.group_id) != (data.audience, data.group_id))
     assign_fields(row, data)
-    commit(db)
+    try:
+        if notify:
+            announce_publication(db, row)
+        commit(db)
+    except StaleDataError:
+        db.rollback()
+        raise HTTPException(409, 'Объявление уже изменено. Обновите страницу.')
     db.refresh(row)
     return announcement_data(row)
 
@@ -170,13 +193,14 @@ def staff_schedule(start: date | None = None, end: date | None = None, group_id:
         end = start + timedelta(days=6) if start <= date.max - timedelta(days=6) else date.max
     if end < start or (end - start).days > 30 or end == date.max:
         raise HTTPException(422, 'Выберите диапазон от 1 до 31 дня.')
-    stmt = select(Lesson).join(Group).options(selectinload(Lesson.group), selectinload(Lesson.changes)).where(
+    stmt = select(Lesson).join(Group).options(selectinload(Lesson.group), selectinload(Lesson.changes),
+        selectinload(Lesson.instructor), selectinload(Lesson.place)).where(
         Group.faculty_id == user.faculty_id, Lesson.starts_at >= datetime.combine(start, time.min, MOSCOW),
         Lesson.starts_at < datetime.combine(end + timedelta(days=1), time.min, MOSCOW))
     if group_id is not None:
         stmt = stmt.where(Lesson.group_id == group_id)
     if q.strip():
-        stmt = stmt.where(or_(Lesson.subject.ilike(f'%{q.strip()}%'), Lesson.teacher.ilike(f'%{q.strip()}%')))
+        stmt = stmt.where(or_(Lesson.subject.ilike(f'%{q.strip()}%'), Lesson.instructor.has(Teacher.name.ilike(f'%{q.strip()}%'))))
     return [lesson_data(row) for row in db.scalars(stmt.order_by(Lesson.starts_at, Lesson.id))]
 
 
@@ -191,21 +215,26 @@ def edit_lesson(lesson_id: int, data: LessonEdit, user=Depends(staff), db: Sessi
     if row.version != data.version or row.status == 'cancelled':
         raise HTTPException(409, 'Занятие уже изменено или отменено. Обновите карточку.')
     before = snapshot(row)
+    recipients = list(db.scalars(select(User.id).where(
+        User.active, User.role == 'student', User.group_id == row.group_id)))
     if data.action == 'cancel':
         row.status = 'cancelled'
     else:
-        changed = False
-        for field in ['starts_at', 'ends_at', 'building', 'room']:
-            value = getattr(data, field)
-            if value is not None and value != getattr(row, field):
-                setattr(row, field, value)
-                changed = True
-        if not changed:
-            raise HTTPException(422, 'Измените время, корпус или аудиторию.')
-        if row.ends_at <= row.starts_at:
+        start, end = data.starts_at or row.starts_at, data.ends_at or row.ends_at
+        if end <= start:
             raise HTTPException(422, 'Окончание занятия должно быть позже начала.')
+        building, number = data.building or row.place.building, data.room or row.place.number
+        old_place = (row.place.building, row.place.number)
+        if (start, end, building, number) == (row.starts_at, row.ends_at, *old_place):
+            raise HTTPException(422, 'Измените время, корпус или аудиторию.')
+        if (building, number) != old_place:
+            row.place = room_for(db, building, number)
+        row.starts_at, row.ends_at = start, end
         row.status = 'moved'
     db.add(LessonChange(lesson_id=row.id, actor_id=user.id, before=before, after=snapshot(row), reason=data.reason))
+    for user_id in recipients:
+        db.add(Notification(user_id=user_id, kind='lesson', lesson_id=row.id,
+                            title='Занятие отменено' if row.status == 'cancelled' else 'Занятие перенесено'))
     commit(db)
     db.refresh(row)
     return dict(**lesson_data(row), announcement_prefill=dict(audience='group', group_id=row.group_id,

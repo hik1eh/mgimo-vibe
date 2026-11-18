@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, AwareDatetime
 class AnnouncementFields(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra='forbid')
     title: str = Field(min_length=3, max_length=160)
+    fact: str | None = Field(default=None, max_length=140)
     text: str = Field(min_length=3, max_length=5000)
     audience: Literal['faculty', 'group']
     group_id: int | None = Field(default=None, ge=1)

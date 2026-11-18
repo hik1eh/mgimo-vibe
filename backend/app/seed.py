@@ -6,6 +6,7 @@ from .models import Faculty, Group, User
 from .security import passwords
 from .study_seed import seed_study
 from .campus_seed import seed_announcements
+from .campus_map import seed_maps
 
 
 def seed(db, credentials, demo_date=None):
@@ -37,6 +38,7 @@ def seed(db, credentials, demo_date=None):
                 group_id=group.id if role == 'student' else None, direction=direction,
                 course=course, password_hash=passwords.hash(password)))
     db.flush()
+    seed_maps(db)
     seed_study(db, demo_date)
     db.flush()
     seed_announcements(db)
