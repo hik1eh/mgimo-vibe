@@ -10,6 +10,10 @@ export type User = {
   direction: string | null;
   contact_email?: string | null;
   contact_phone?: string | null;
+  university?: string;
+  age?: number | null;
+  study_mode?: string | null;
+  student_card_number?: string | null;
 };
 export type Status = "accepted" | "in_progress" | "needs_info" | "ready";
 export type RequestRecord = {

@@ -10,6 +10,7 @@ import {
 import { ErrorBox, useResource } from "./ui";
 import { lessonPath } from "./schedule-model";
 import type { Lesson } from "./study-types";
+import { CampusPreview } from "./campus-preview";
 
 type Point = [number, number];
 type Space = {
@@ -240,14 +241,19 @@ export function LessonRoutePage() {
       <Link className="back" to={lessonPath(Number(id), search.slice(1))}>
         <ArrowLeft size={16} aria-hidden="true" /> К занятию
       </Link>
-      <div className="page-title">
-        <h1>Маршрут до аудитории</h1>
-        {data && (
-          <p>
-            {data.lesson.building} ·{" "}
-            {data.lesson.floor ? `${data.lesson.floor}-й этаж · ` : ""}аудитория{" "}
-            {data.lesson.room}
-          </p>
+      <div className="page-title title-row">
+        <div>
+          <h1>Маршрут до аудитории</h1>
+          {data && (
+            <p>
+              {data.lesson.building} ·{" "}
+              {data.lesson.floor ? `${data.lesson.floor}-й этаж · ` : ""}аудитория{" "}
+              {data.lesson.room}
+            </p>
+          )}
+        </div>
+        {data?.lesson.building === "Северный корпус" && (
+          <CampusPreview className="secondary campus-route-preview" />
         )}
       </div>
       <ErrorBox error={error} />

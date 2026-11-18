@@ -130,9 +130,24 @@ export function StudentProfile({
     .slice(0, 2)
     .map((word) => word[0])
     .join("");
+  const fields = [
+    ["ФИО", user.full_name],
+    ["ВУЗ", user.university],
+    ["Курс", user.course],
+    ["Группа", user.group],
+    ["Возраст", user.age],
+    ["Логин", user.login],
+    ["Факультет", user.faculty],
+    ["Форма обучения", user.study_mode],
+    ["№ студенческого", user.student_card_number],
+  ] as const;
 
   return (
-    <div className="student-badge-layout">
+    <div
+      className="student-badge-layout"
+      data-expanded={expanded || undefined}
+      data-motion={animate || undefined}
+    >
       <section className="badge-column" aria-label="Студенческий пропуск">
         <div className="badge-lanyard" aria-hidden="true">
           <i />
@@ -177,12 +192,12 @@ export function StudentProfile({
       >
         <div className="profile-study-fields">
           <dl>
-            <dt>Факультет</dt>
-            <dd>{user.faculty}</dd>
-            <dt>Направление</dt>
-            <dd>{user.direction}</dd>
-            <dt>Логин</dt>
-            <dd>{user.login}</dd>
+            {fields.map(([label, value]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd>{value ?? "Не указано"}</dd>
+              </div>
+            ))}
           </dl>
         </div>
         {editing ? (

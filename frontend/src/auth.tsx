@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -10,7 +12,6 @@ import { Eye, EyeSlash, LockKey } from "@phosphor-icons/react";
 import { signIn, type User } from "./api";
 import { ErrorBox } from "./ui";
 import { AUTH_MOTION } from "./auth-motion";
-import { CampusObject } from "./campus-object";
 import campusExterior from "./assets/campus-exterior.webp";
 import campusLibrary from "./assets/campus-library.webp";
 import campusAtrium from "./assets/campus-atrium.webp";
@@ -20,6 +21,8 @@ import campusSeminar from "./assets/campus-seminar.webp";
 import campusCafe from "./assets/campus-cafe.webp";
 import authLight from "./assets/auth-light.webp";
 import "./auth.css";
+
+const GraduationCap = lazy(() => import("./graduation-cap"));
 
 const campus = [
   {
@@ -201,8 +204,10 @@ function CampusScene({ reduced }: { reduced: boolean }) {
       </div>
       <div className="auth-scene-content">
         <div className="auth-portrait">
-          <div className="auth-portrait-model">
-            <CampusObject kind="campus" animated={!reduced} />
+          <div className="auth-portrait-model" aria-hidden="true">
+            <Suspense fallback={null}>
+              <GraduationCap running={running} reduced={reduced} />
+            </Suspense>
           </div>
         </div>
         <CampusCarousel running={running} reduced={reduced} />
@@ -285,6 +290,7 @@ export function Login({
             activeField,
             expired,
             desktop,
+            reduced,
           }}
           setLogin={setLogin}
           setPassword={setPassword}
@@ -306,6 +312,7 @@ export type AuthPanelState = {
   activeField: "login" | "password" | "none";
   expired: boolean;
   desktop: boolean;
+  reduced: boolean;
 };
 
 // Controlled presentation: the same panel is used for initial and expired-session login.
@@ -333,6 +340,7 @@ export function AuthPanel({
     activeField,
     expired,
     desktop,
+    reduced,
   } = state;
   const cardRef = useRef<HTMLDivElement>(null);
   const illuminated = activeField === "none" && error ? "login" : activeField;
@@ -409,8 +417,10 @@ export function AuthPanel({
             Северного кампуса
           </span>
           {!desktop && !expired && (
-            <div className="auth-mobile-object">
-              <CampusObject kind="campus" />
+            <div className="auth-mobile-object" aria-hidden="true">
+              <Suspense fallback={null}>
+                <GraduationCap running={!reduced} reduced={reduced} />
+              </Suspense>
             </div>
           )}
         </div>
@@ -483,13 +493,10 @@ export function AuthPanel({
             {busy ? <span className="auth-spinner" aria-hidden="true" /> : null}
           </button>
         </form>
-        <p className="auth-credentials-note">
-          <LockKey size={15} /> Используйте доступ, выданный командой проекта.
-        </p>
       </div>
       <footer className="auth-panel-bottom">
         <p>Конкурсный прототип. Все данные вымышлены.</p>
-        <p>Демодоступы передаются отдельно.</p>
+        <p>Доступ выдаёт команда проекта.</p>
       </footer>
     </section>
   );

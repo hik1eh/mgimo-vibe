@@ -92,7 +92,7 @@ export function StaffSchedulePage() {
           </label>
         </div>
         <p className="fine">
-          Без дат показывается неделя демонстрационного сценария. Время
+          Выберите даты, чтобы увидеть другую неделю. Время
           московское.
         </p>
         <ErrorBox error={rows.error || groups.error} />

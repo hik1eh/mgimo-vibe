@@ -21,6 +21,8 @@ import type { Announcement } from "./campus-types";
 import { campusDay, campusTime, dayLabel } from "./study-dates";
 import { lessonPath } from "./schedule-model";
 import { ErrorBox, useResource } from "./ui";
+import type { LessonAttention } from "./lesson-attention";
+import { captureNewsMove } from "./news-carousel-motion";
 
 const source = {
   university: { label: "Вуз", Icon: BookOpen },
@@ -136,9 +138,11 @@ function NewsDetails({
 export function NewsFeed({
   rows,
   group,
+  attention,
 }: {
   rows: Announcement[];
   group?: string | null;
+  attention: LessonAttention;
 }) {
   const { key } = useLocation();
   const historyKey = `dekanat.feed.${key}`;
@@ -177,6 +181,9 @@ export function NewsFeed({
   const indexRef = useRef(index);
   indexRef.current = index;
   const viewport = useRef<HTMLDivElement>(null);
+  const pendingMove = useRef<ReturnType<typeof captureNewsMove> | undefined>(undefined);
+  const cancelMove = useRef<(() => void) | undefined>(undefined);
+  const mobileTarget = useRef<number | null>(null);
   const trigger = useRef<HTMLButtonElement | null>(null);
   const [selected, setSelected] = useState<Announcement | null>(null);
   const [open, setOpen] = useState(false);
@@ -233,6 +240,7 @@ export function NewsFeed({
     });
   };
   useLayoutEffect(() => {
+    mobileTarget.current = null;
     if (mobile && news.length) revealMobile(indexRef.current, false);
     const returnTo = restoreFocus.current;
     if (returnTo) {
@@ -242,11 +250,27 @@ export function NewsFeed({
       restoreFocus.current = undefined;
     }
   }, [mobile, signature]);
-  function move(delta: number) {
+  useLayoutEffect(() => {
+    if (pendingMove.current) {
+      cancelMove.current = pendingMove.current.play();
+      pendingMove.current = undefined;
+    }
+  }, [activeId]);
+  useEffect(() => () => cancelMove.current?.(), [layout, signature]);
+  function move(delta: number, animate: boolean) {
     if (news.length < 2) return;
-    const next = wrap(indexRef.current + delta, news.length);
+    const next = wrap((mobileTarget.current ?? indexRef.current) + delta, news.length);
+    const track = viewport.current;
+    const gentle = animate && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!mobile && track && gentle)
+      pendingMove.current = captureNewsMove(track, delta);
+    cancelMove.current?.();
+    if (mobile) {
+      mobileTarget.current = gentle ? next : null;
+      revealMobile(next, gentle);
+    }
+    indexRef.current = next;
     setActiveId(news[next].id);
-    if (mobile) revealMobile(next, true);
   }
   function scrolled() {
     const el = viewport.current;
@@ -260,6 +284,8 @@ export function NewsFeed({
       ),
     );
     const nearest = distances.indexOf(Math.min(...distances));
+    if (mobileTarget.current !== null && mobileTarget.current !== nearest) return;
+    mobileTarget.current = null;
     if (news[nearest]) setActiveId(news[nearest].id);
   }
   return (
@@ -281,7 +307,7 @@ export function NewsFeed({
               type="button"
               className="secondary square"
               aria-label="Предыдущее объявление"
-              onClick={() => move(-1)}
+              onClick={(event) => move(-1, event.detail > 0)}
             >
               <ArrowLeft aria-hidden="true" />
             </button>
@@ -289,7 +315,7 @@ export function NewsFeed({
               type="button"
               className="secondary square"
               aria-label="Следующее объявление"
-              onClick={() => move(1)}
+              onClick={(event) => move(1, event.detail > 0)}
             >
               <ArrowRight aria-hidden="true" />
             </button>
@@ -316,13 +342,16 @@ export function NewsFeed({
           role="group"
           aria-label="Объявления, используйте стрелки или прокрутку"
           onScroll={scrolled}
+          onPointerDown={() => {
+            mobileTarget.current = null;
+          }}
           onKeyDown={(event) => {
             if (
               event.target === event.currentTarget &&
               ["ArrowLeft", "ArrowRight"].includes(event.key)
             ) {
               event.preventDefault();
-              move(event.key === "ArrowLeft" ? -1 : 1);
+              move(event.key === "ArrowLeft" ? -1 : 1, false);
             }
           }}
         >
@@ -333,6 +362,8 @@ export function NewsFeed({
               <div
                 key={item.id}
                 className="news-tile-shell"
+                data-slide-id={item.id}
+                data-position={offset}
                 data-distance={Math.abs(offset)}
                 style={
                   {
@@ -347,16 +378,22 @@ export function NewsFeed({
                   className="news-tile"
                   data-news-id={item.id}
                   data-active={current || undefined}
+                  data-move-pending={attention.pending(item.lesson) || undefined}
                   aria-haspopup="dialog"
                   aria-current={current ? "true" : undefined}
                   onFocus={() => {
                     if (mobile) {
+                      mobileTarget.current = null;
                       const i = news.findIndex((n) => n.id === item.id);
                       setActiveId(item.id);
                       revealMobile(i, false);
                     }
                   }}
+                  onPointerEnter={(event) => {
+                    if (event.pointerType === "mouse") attention.acknowledge(item.lesson);
+                  }}
                   onClick={(event) => {
+                    attention.acknowledge(item.lesson);
                     trigger.current = event.currentTarget;
                     setSelected(item);
                     setOpen(true);

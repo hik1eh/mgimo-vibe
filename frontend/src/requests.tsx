@@ -338,7 +338,7 @@ export function NewRequest({ user }: { user: User }) {
                 }
               />
               <small>
-                От 3 до 500 символов. Используйте только вымышленные сведения.
+                От 3 до 500 символов.
               </small>
             </label>
             {purposeError && (
@@ -364,10 +364,6 @@ export function NewRequest({ user }: { user: User }) {
           <p>
             Когда справка будет готова, появится уведомление и кнопка
             скачивания.
-          </p>
-          <p className="fine">
-            Документ с пометкой «Демонстрационный образец» не имеет юридической
-            силы.
           </p>
         </aside>
       </div>
@@ -451,7 +447,7 @@ function RequestDetail({
       link.download = `certificate-${id}.pdf`;
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      setMessage("Демонстрационная справка скачана.");
+      setMessage("Справка скачана.");
     } catch (e) {
       setActionError((e as Error).message);
     } finally {
@@ -533,9 +529,6 @@ function RequestDetail({
                       <DownloadSimple size={20} aria-hidden="true" />
                       {busy ? "Загружаем…" : "Скачать PDF"}
                     </button>
-                    <p className="fine">
-                      Демонстрационный образец. Не имеет юридической силы.
-                    </p>
                   </>
                 )}
                 {!staff && req.status === "ready" && !req.document_url && (
@@ -561,8 +554,7 @@ function RequestDetail({
                 )}
                 {staff && req.status === "ready" && (
                   <p>
-                    Студенту отправлено уведомление. Демонстрационная справка
-                    доступна в его кабинете.
+                    Студенту отправлено уведомление. Справка доступна в его кабинете.
                   </p>
                 )}
                 {((staff && req.status === "in_progress") ||

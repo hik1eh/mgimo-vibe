@@ -460,7 +460,7 @@ function CalendarContent({
                 className="secondary"
                 onClick={() => update({ date: context.demo_day })}
               >
-                Демонстрационный день
+                К учебному дню
               </button>
             )}
           </section>
@@ -515,7 +515,7 @@ function CalendarContent({
           </>
         ))}
       <p className="calendar-caption">
-        Учебные даты демонстрационные · Время московское
+        Время московское
       </p>
     </div>
   );

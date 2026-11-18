@@ -94,8 +94,8 @@ for (const width of [360, 390, 768, 1000, 1440]) {
     if (width < 1000) {
       await expect(page.locator(".auth-scene")).toHaveCount(0);
       await expect(
-        page.locator(".auth-mobile-object .campus-object"),
-      ).toHaveAttribute("data-campus-model", "campus");
+        page.locator(".auth-mobile-object .auth-hologram"),
+      ).toBeVisible();
       expect(
         (await page
           .getByRole("button", { name: "Войти в кабинет" })
@@ -105,12 +105,11 @@ for (const width of [360, 390, 768, 1000, 1440]) {
         requested.filter(
           (url) =>
             campusPhoto(url) ||
-            url.includes("/graduation-cap") ||
             url.includes("/Allura"),
         ),
       ).toHaveLength(0);
     } else {
-      await expect(page.locator("canvas[data-campus-canvas]")).toBeVisible();
+      await expect(page.locator("canvas[data-graduation-cap]")).toBeVisible();
       const shell = await page.locator(".auth-shell").boundingBox();
       const panel = await page.locator(".auth-panel").boundingBox();
       expect(panel!.width / shell!.width).toBeCloseTo(0.35, 2);
@@ -306,7 +305,7 @@ test("auth motion has no pause control, continues on hover and respects reduced 
   const errors: string[] = [];
   observeErrors(page, errors);
   await page.goto("/");
-  const canvas = page.locator("canvas[data-campus-canvas]");
+  const canvas = page.locator("canvas[data-graduation-cap]");
   await expect(canvas).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
   expect(
@@ -337,7 +336,9 @@ test("auth motion has no pause control, continues on hover and respects reduced 
   const previousTransform = await card.evaluate(
     (node) => getComputedStyle(node).transform,
   );
+  const previousAngle = await canvas.getAttribute("data-yaw");
   await page.waitForTimeout(300);
+  await expect(canvas).not.toHaveAttribute("data-yaw", previousAngle!);
   expect(
     await card.evaluate((node) => getComputedStyle(node).transform),
   ).not.toBe(previousTransform);
@@ -353,9 +354,9 @@ test("auth motion has no pause control, continues on hover and respects reduced 
         requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
       ),
   );
-  await expect(canvas).toHaveAttribute("data-yaw", "0.3600");
+  await expect(canvas).toHaveAttribute("data-yaw", "0.5000");
   await page.waitForTimeout(400);
-  await expect(canvas).toHaveAttribute("data-yaw", "0.3600");
+  await expect(canvas).toHaveAttribute("data-yaw", "0.5000");
   expect(
     await card.evaluate((node) => getComputedStyle(node).animationName),
   ).toBe("none");
@@ -496,12 +497,12 @@ test("auth remains usable without WebGL", async ({ page }) => {
   });
   await page.goto("/");
   await expect(
-    page.locator(".campus-object[data-render=static]"),
+    page.locator(".auth-hologram[data-fallback=true]"),
   ).toBeVisible();
   await expect
     .poll(() =>
       page
-        .locator(".campus-object[data-render=static] img")
+        .locator(".auth-hologram-fallback")
         .evaluate((node) => (node as HTMLImageElement).naturalWidth),
     )
     .toBeGreaterThan(0);
@@ -510,7 +511,7 @@ test("auth remains usable without WebGL", async ({ page }) => {
   ).toBeEnabled();
   await noOverflow(page);
   await page.screenshot({
-    path: "/artifacts/after/auth-campus-fallback-1440.png",
+    path: "/artifacts/after/auth-cap-fallback-1440.png",
     fullPage: true,
   });
 });

@@ -3,6 +3,7 @@ import { useRef } from "react";
 import { useResource } from "./ui";
 import { CampusObject, type CampusModel } from "./campus-object";
 import type { StudyContext } from "./study-types";
+import { CampusPreview } from "./campus-preview";
 
 type Banner = { title: string; subtitle?: string; model: CampusModel };
 
@@ -16,7 +17,7 @@ const studentBanners: Record<string, Banner> = {
     model: "letter",
   },
   "/notifications": { title: "Уведомления", model: "bell" },
-  "/profile": { title: "Профиль", model: "clip" },
+  "/profile": { title: "Информация о студенте", model: "clip" },
 };
 
 const staffBanners: Record<string, Banner> = {
@@ -89,7 +90,10 @@ export function SectionBanner({
           </p>
           <h1 id="section-title">{banner.title}</h1>
           {pathname === "/today" ? (
-            <TodayDate />
+            <>
+              <TodayDate />
+              <CampusPreview className="campus-banner-preview" />
+            </>
           ) : (
             (staff || banner.subtitle) && (
               <p className="section-banner__date">

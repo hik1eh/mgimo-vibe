@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { type User } from "./api";
 import { ErrorBox, useResource } from "./ui";
@@ -12,6 +13,7 @@ import "./study.css";
 import { StudentSchedule } from "./schedule-view";
 import { RouteLink } from "./lesson-route";
 import { SemesterStories } from "./semester-stories";
+import { rememberMove } from "./lesson-attention";
 
 function ResourceError({
   error,
@@ -28,14 +30,6 @@ function ResourceError({
       </button>
     </>
   ) : null;
-}
-function DemoDates({ day }: { day: string }) {
-  return (
-    <p className="study-caption">
-      Учебные даты демонстрационные. «Сегодня» в сценарии — {dayLabel(day)}.
-      Время московское.
-    </p>
-  );
 }
 function LessonBadge({ status }: { status: Lesson["status"] }) {
   return (
@@ -148,7 +142,7 @@ export function SchedulePage({ user }: { user: User }) {
   return <StudentSchedule user={user} />;
 }
 
-export function LessonPage() {
+export function LessonPage({ viewer }: { viewer: number }) {
   const { id } = useParams();
   const [params] = useSearchParams();
   const {
@@ -156,6 +150,7 @@ export function LessonPage() {
     error,
     reload,
   } = useResource<Lesson>(`/schedule/${id}`, true);
+  useEffect(() => rememberMove(viewer, lesson), [viewer, lesson]);
   return (
     <>
       <Link className="back" to={`/schedule?${params}`}>
@@ -269,7 +264,6 @@ export function ResultsPage() {
       {!data && !error && <p role="status">Загружаем результаты…</p>}
       {data && (
         <>
-          <DemoDates day={data.as_of} />
           <div className="results-toolbar">
             <label>
               Семестр

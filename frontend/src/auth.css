@@ -353,19 +353,6 @@
 .auth-submit:active {
   transform: scale(0.985);
 }
-.auth-credentials-note {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
-  color: var(--auth-muted);
-  font-size: var(--auth-footer-size);
-  margin: var(--space-5) 0 0;
-  line-height: 1.7;
-}
-.auth-credentials-note svg {
-  flex-shrink: 0;
-  margin-top: 2px;
-}
 .auth-panel-bottom {
   display: block;
   text-align: center;
@@ -375,6 +362,7 @@
   max-width: none;
   margin: 0;
   padding: var(--space-3) 0 0;
+  border-top: 1px solid #b3bec538;
   flex-shrink: 0;
   line-height: 1.6;
 }

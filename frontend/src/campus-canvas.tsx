@@ -15,24 +15,31 @@ import {
   WebGLRenderer,
 } from "three";
 import { campusGeometry, releaseGeometry } from "./campus-geometry";
-import type { CampusModel } from "./campus-object";
+import type { CampusModel, CampusView } from "./campus-object";
 
 const restingAngle = 0.36;
 const tilt = 0.34;
 const turn = Math.PI / 30; // Six degrees between the first and resting frames.
 const duration = 360;
 const fieldOfView = 36;
+const inspectionPitch = 0.47;
+const viewingAngles: Record<CampusView, number> = {
+  entrance: 0.38,
+  wing: 1.29,
+  courtyard: 2.89,
+};
 
 function positionCamera(
   camera: PerspectiveCamera,
   center: Vector3,
   distance: number,
   yaw: number,
+  pitch = tilt,
 ) {
   camera.position.set(
-    center.x + distance * Math.sin(yaw) * Math.cos(tilt),
-    center.y + distance * Math.sin(tilt),
-    center.z + distance * Math.cos(yaw) * Math.cos(tilt),
+    center.x + distance * Math.sin(yaw) * Math.cos(pitch),
+    center.y + distance * Math.sin(pitch),
+    center.z + distance * Math.cos(yaw) * Math.cos(pitch),
   );
   camera.lookAt(center);
   camera.updateMatrixWorld();
@@ -42,12 +49,14 @@ function cameraDistance(
   camera: PerspectiveCamera,
   bounds: Box3,
   center: Vector3,
+  yaw = restingAngle,
+  pitch = tilt,
 ) {
   const size = bounds.getSize(new Vector3());
   let distance = Math.max(size.x, size.y, size.z) * 2;
   const projected = new Vector3();
   for (let pass = 0; pass < 6; pass++) {
-    positionCamera(camera, center, distance, restingAngle);
+    positionCamera(camera, center, distance, yaw, pitch);
     let extent = 0;
     for (const x of [bounds.min.x, bounds.max.x])
       for (const y of [bounds.min.y, bounds.max.y])
@@ -80,15 +89,18 @@ function contactTexture() {
 export default function CampusCanvas({
   kind,
   animated,
+  view,
   onFrame,
 }: {
   kind: CampusModel;
   animated: boolean;
+  view?: CampusView;
   onFrame: (kind: CampusModel | null) => void;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const controls = useRef<{
     show: (kind: CampusModel, animate: boolean) => void;
+    lookFrom: (view: CampusView | undefined) => void;
   } | null>(null);
   useEffect(() => {
     const host = hostRef.current;
@@ -143,6 +155,11 @@ export default function CampusCanvas({
     let pending = 0;
     let visible = false;
     let lost = false;
+    let viewing = false;
+    let angle = restingAngle;
+    let fromAngle = restingAngle;
+    let targetAngle = restingAngle;
+    let orbitStart = 0;
 
     function requestDraw() {
       if (pending || !visible || lost || document.hidden || !model) return;
@@ -158,8 +175,14 @@ export default function CampusCanvas({
       offset = quiet.matches ? 0 : offset + (pointer - offset) * 0.25;
       if (Math.abs(pointer - offset) < 0.0004)
         offset = quiet.matches ? 0 : pointer;
-      const yaw = restingAngle + turn * (1 - progress) ** 3 + offset;
-      positionCamera(camera, center, distance, yaw);
+      const orbitProgress = quiet.matches || !orbitStart
+        ? 1 : Math.max(0, Math.min(1, (time - orbitStart) / 290));
+      angle = targetAngle + (fromAngle - targetAngle) * (1 - orbitProgress) ** 3;
+      const yaw = angle + turn * (1 - progress) ** 3 + offset;
+      const viewDistance = viewing
+        ? cameraDistance(camera, bounds, center, yaw, inspectionPitch)
+        : distance;
+      positionCamera(camera, center, viewDistance, yaw, viewing ? inspectionPitch : tilt);
       renderer.render(scene, camera);
       canvas.dataset.yaw = yaw.toFixed(4);
       canvas.dataset.meshes = String(model!.children.length);
@@ -177,7 +200,7 @@ export default function CampusCanvas({
           );
         }
       }
-      if (progress < 1 || (!quiet.matches && offset !== pointer)) requestDraw();
+      if (progress < 1 || orbitProgress < 1 || (!quiet.matches && offset !== pointer)) requestDraw();
     }
     function resize() {
       const { clientWidth: width, clientHeight: height } = host!;
@@ -188,10 +211,20 @@ export default function CampusCanvas({
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
-      if (model) distance = cameraDistance(camera, bounds, center);
+      if (model && !viewing) distance = cameraDistance(camera, bounds, center);
       requestDraw();
     }
     controls.current = {
+      lookFrom(next) {
+        const wasViewing = viewing;
+        viewing = Boolean(next);
+        pointer = offset = 0;
+        fromAngle = angle;
+        targetAngle = next ? viewingAngles[next] : restingAngle;
+        orbitStart = wasViewing && viewing && !quiet.matches ? performance.now() : 0;
+        if (wasViewing !== viewing) resize();
+        requestDraw();
+      },
       show(next, animate) {
         if (current === next) return;
         if (model) {
@@ -224,7 +257,7 @@ export default function CampusCanvas({
     intersection.observe(host);
     const pointerTarget = host.parentElement!;
     function move(event: PointerEvent) {
-      if (!fine.matches || quiet.matches || event.pointerType !== "mouse")
+      if (viewing || !fine.matches || quiet.matches || event.pointerType !== "mouse")
         return;
       const box = pointerTarget.getBoundingClientRect();
       pointer = ((event.clientX - box.left) / box.width - 0.5) * 2 * turn;
@@ -266,5 +299,8 @@ export default function CampusCanvas({
   useEffect(() => {
     controls.current?.show(kind, animated);
   }, [kind, animated]);
+  useEffect(() => {
+    controls.current?.lookFrom(view);
+  }, [view]);
   return <div ref={hostRef} className="campus-canvas-host" />;
 }

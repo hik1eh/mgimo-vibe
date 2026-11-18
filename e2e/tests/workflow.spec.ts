@@ -77,7 +77,7 @@ test("certificate UI end to end, clarification, notification, PDF and foreign de
   const download = await downloaded;
   await download.saveAs("/artifacts/certificate-ui.pdf");
   expect(await download.failure()).toBeNull();
-  await expect(page.getByText("Демонстрационная справка скачана.")).toBeVisible();
+  await expect(page.getByText("Справка скачана.")).toBeVisible();
   const scan = await new AxeBuilder({ page })
     .include(".ready-document .success")
     .withRules(["color-contrast"])
@@ -219,15 +219,12 @@ test("staff UI changes lesson, publishes, edits and withdraws targeted announcem
   await a.reload();
   await expect(a.getByRole("alert")).toContainText("Объявление недоступно");
   await page.goto("/staff/schedule?q=Методы");
-  await page
-    .getByRole("link")
-    .filter({
-      has: page.getByRole("heading", {
-        name: "Методы социальных исследований",
-        exact: true,
-      }),
-    })
-    .click();
+  const options = await (await page.request.get("/api/v1/staff/schedule?q=Методы")).json();
+  const planned = options.find((row: { subject: string; status: string }) =>
+    row.subject === "Методы социальных исследований" && row.status === "scheduled",
+  );
+  expect(planned).toBeDefined();
+  await page.locator(`a[href="/staff/schedule/${planned.id}"]`).click();
   await page
     .getByLabel("Причина изменения или отмены")
     .fill("Отмена для браузерного прогона.");

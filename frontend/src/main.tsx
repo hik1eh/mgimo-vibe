@@ -186,7 +186,7 @@ function Cabinet({
           <Routes>
             {!staff && (
               <>
-                <Route path="/today" element={<TodayPage user={user} />} />
+                <Route path="/today" element={<TodayPage key={user.id} user={user} />} />
                 <Route path="/announcements" element={<AnnouncementsPage />} />
                 <Route
                   path="/announcements/:id"
@@ -196,7 +196,7 @@ function Cabinet({
                   path="/schedule"
                   element={<SchedulePage user={user} />}
                 />
-                <Route path="/schedule/:id" element={<LessonPage />} />
+                <Route path="/schedule/:id" element={<LessonPage viewer={user.id} />} />
                 <Route
                   path="/schedule/:id/route"
                   element={<LessonRoutePage />}
@@ -276,13 +276,12 @@ function Cabinet({
           </Routes>
         </div>
       </main>
-      <div className="prototype-bar">
-        Конкурсный прототип{" "}
-        <span>· Университет, профили и документы вымышлены</span>
-      </div>
-      <footer className={staff ? "" : "student-footer"}>
-        <span>Университет Северного кампуса</span>
-        <span>Цифровой деканат</span>
+      <footer className="cabinet-footer">
+        <strong>Конкурсный прототип</strong>
+        <span>
+          Университет, учебные даты, профили и документы вымышлены.
+          Справки демонстрационные и не имеют юридической силы.
+        </span>
       </footer>
     </div>
   );

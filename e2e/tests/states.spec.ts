@@ -144,7 +144,8 @@ test("loading and empty announcements; long text and enlarged type stay inside p
     await page.goto("/profile");
     await page.reload();
     await expect(
-      page.getByText("Александра-Мирослава Длиннофамильцева-Севернокампусная", {
+      page.getByRole("heading", {
+        name: "Александра-Мирослава Длиннофамильцева-Севернокампусная",
         exact: true,
       }),
     ).toBeVisible();

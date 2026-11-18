@@ -464,6 +464,7 @@ test("capture redesign evidence at rest, hover, filtered week and mobile day", a
       await Promise.all(
         el
           .getAnimations({ subtree: true })
+          .filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime))
           .map((animation) => animation.finished.catch(() => {})),
       );
     });

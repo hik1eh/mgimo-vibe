@@ -7,6 +7,7 @@ import { ErrorBox, useResource } from "./ui";
 import { type Announcement, audienceLabel } from "./campus-types";
 import { LessonCard } from "./study";
 import { RouteLink } from "./lesson-route";
+import { useLessonAttention, type LessonAttention } from "./lesson-attention";
 import {
   Bell,
   User as UserIcon,
@@ -134,7 +135,13 @@ function AnnouncementCard({
   );
 }
 
-function HomeStudy({ context }: { context: StudyContext }) {
+function HomeStudy({
+  context,
+  attention,
+}: {
+  context: StudyContext;
+  attention: LessonAttention;
+}) {
   const lessons = useResource<Lesson[]>(
     `/schedule?start=${context.today}&end=${addDays(context.today, 6)}`,
     true,
@@ -146,7 +153,14 @@ function HomeStudy({ context }: { context: StudyContext }) {
       row.status !== "cancelled" && new Date(row.ends_at).getTime() > instant,
   );
   return (
-    <section className="home-study panel">
+    <section
+      className="home-study panel"
+      data-move-pending={attention.pending(next) || undefined}
+      onPointerEnter={(event) => {
+        if (event.pointerType === "mouse") attention.acknowledge(next);
+      }}
+      onClick={() => attention.acknowledge(next)}
+    >
       <div className="section-heading">
         <h2>Ближайшее занятие</h2>
         <Link to="/schedule">Расписание →</Link>
@@ -190,6 +204,7 @@ function HomeStudy({ context }: { context: StudyContext }) {
 }
 
 export function TodayPage({ user }: { user: User }) {
+  const attention = useLessonAttention(user.id);
   const feed = useResource<Announcement[]>("/announcements", true);
   const requests = useResource<RequestRecord[]>("/requests", true);
   const context = useResource<StudyContext>("/study-context");
@@ -215,7 +230,7 @@ export function TodayPage({ user }: { user: User }) {
         </button>
       )}
       {feed.data ? (
-        <NewsFeed rows={feed.data} group={user.group} />
+        <NewsFeed rows={feed.data} group={user.group} attention={attention} />
       ) : (
         !feed.error && (
           <section className="dean-feed">
@@ -231,7 +246,7 @@ export function TodayPage({ user }: { user: User }) {
         </button>
       )}
       <div className="student-overview">
-        {context.data && <HomeStudy context={context.data} />}
+        {context.data && <HomeStudy context={context.data} attention={attention} />}
         {credit && (
           <Link className="overview-card" to="/academic-results">
             <CalendarBlank size={24} aria-hidden="true" />
@@ -281,9 +296,6 @@ export function TodayPage({ user }: { user: User }) {
           Заказать справку ＋
         </Link>
       </div>
-      <p className="calendar-caption">
-        Учебные даты демонстрационные · Время московское
-      </p>
     </div>
   );
 }

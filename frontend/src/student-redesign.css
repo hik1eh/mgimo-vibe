@@ -6,7 +6,6 @@
   font-weight: 400;
 }
 .cabinet-app[data-student-screen] {
-  --bg: #f4f6fa;
   --surface: #fff;
   --navy: #12283b;
   --muted: #516579;
@@ -174,6 +173,8 @@
   gap: 18px;
   align-items: start;
   justify-content: center;
+  overflow: clip;
+  overflow-clip-margin: 18px;
 }
 .news-grid[data-count="1"] {
   max-width: 304px;
@@ -196,6 +197,12 @@
   aspect-ratio: 1;
   min-width: 0;
   margin-top: var(--tile-offset);
+  transform-origin: top left;
+}
+.news-tile-shell.news-tile-exit {
+  position: absolute;
+  margin: 0;
+  pointer-events: none;
 }
 .news-tile-shell:has(:is(:hover, :focus-visible)) {
   z-index: 2;
@@ -217,7 +224,9 @@
   transition:
     transform var(--study-hover-duration) var(--study-ease),
     box-shadow var(--study-hover-duration) ease,
-    border-color var(--study-hover-duration) ease;
+    border-color var(--study-hover-duration) ease,
+    background-color var(--study-hover-duration) ease,
+    color var(--study-hover-duration) ease;
 }
 .news-tile[data-active] {
   background: #102a40;

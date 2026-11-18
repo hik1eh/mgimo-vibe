@@ -212,6 +212,7 @@ export default function GraduationCap({
       reveal.value = -2.6 + amount * 5.2;
       assembly.value = amount;
       renderer.render(scene, camera);
+      renderer.domElement.dataset.yaw = cap.rotation.y.toFixed(4);
     };
     const tick = (now: number) => {
       if (disposed || !active || reduce) return;

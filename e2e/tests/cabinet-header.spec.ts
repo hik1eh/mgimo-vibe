@@ -7,7 +7,7 @@ const sections = [
   ["/academic-results", "Оценки", "record"],
   ["/requests", "Заявки", "letter"],
   ["/notifications", "Уведомления", "bell"],
-  ["/profile", "Профиль", "clip"],
+  ["/profile", "Информация о студенте", "clip"],
 ] as const;
 
 for (const width of [360, 768, 1440, 1916]) {

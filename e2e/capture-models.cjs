@@ -3,8 +3,8 @@ const { chromium } = require("playwright");
 const { mkdir, writeFile } = require("node:fs/promises");
 const path = require("node:path");
 
-async function shot(page, kind, output) {
-  const scene = page.locator(`[data-campus-model="${kind}"]`).first();
+async function shot(page, kind, output, selector = `[data-campus-model="${kind}"]`) {
+  const scene = page.locator(selector).first();
   await scene.waitFor();
   await scene.evaluate((element) => {
     for (let parent = element; parent; parent = parent.parentElement) {
@@ -64,7 +64,7 @@ async function signIn(context, login, password) {
 }
 
 (async () => {
-  const output = "/artifacts/final-mvp/models";
+  const output = process.env.MODEL_OUTPUT || "/artifacts/final-mvp/models";
   await mkdir(output, { recursive: true });
   const browser = await chromium.launch({
     args: [
@@ -94,6 +94,16 @@ async function signIn(context, login, password) {
     })) {
       await student.goto(url);
       await shot(student, kind, output);
+    }
+    for (const [view, label] of [
+      ["entrance", "Главный вход"],
+      ["wing", "Учебные корпуса"],
+      ["courtyard", "Внутренний двор"],
+    ]) {
+      await student.goto("/today");
+      await student.getByRole("button", { name: "Кампус в 3D" }).click();
+      await student.getByRole("button", { name: label }).click();
+      await shot(student, `campus-${view}`, output, `[data-campus-view="${view}"]`);
     }
     const staff = await signIn(
       await browser.newContext(options),

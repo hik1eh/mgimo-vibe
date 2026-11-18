@@ -96,7 +96,7 @@ test("main student sections share the campus palette and local Cyrillic headings
       await page
         .locator(".cabinet-app")
         .evaluate((el) => getComputedStyle(el).backgroundColor),
-    ).toBe("rgb(244, 246, 250)");
+    ).toBe("rgb(244, 246, 248)");
   }
   expect(
     await page.evaluate(() =>

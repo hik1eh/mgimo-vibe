@@ -52,10 +52,7 @@ for (const width of [1440, 390]) {
     await expect(
       page.getByRole("button", { name: "Войти в кабинет" }),
     ).toBeVisible();
-    await expect(page.locator(".auth-page .campus-object")).toHaveAttribute(
-      "data-render",
-      "webgl",
-    );
+    await expect(page.locator(".auth-page canvas[data-graduation-cap]")).toBeVisible();
     await capture(page, width, "login");
     await login(page);
     const study = await (
@@ -294,7 +291,7 @@ for (const width of [1440, 390]) {
     const pdf = page.waitForEvent("download");
     await download.click();
     expect(await (await pdf).failure()).toBeNull();
-    await expect(page.getByText("Демонстрационная справка скачана.")).toBeVisible();
+    await expect(page.getByText("Справка скачана.")).toBeVisible();
     await capture(page, width, "request-downloaded");
     await page.goto("/notifications");
     await expect(
