@@ -42,6 +42,9 @@ class User(Base):
     course: Mapped[int | None] = mapped_column(Integer, nullable=True)
     contact_email: Mapped[str | None] = mapped_column(String(254))
     contact_phone: Mapped[str | None] = mapped_column(String(32))
+    birth_date: Mapped[date | None] = mapped_column(Date)
+    study_mode: Mapped[str | None] = mapped_column(String(32))
+    student_card_number: Mapped[str | None] = mapped_column(String(40))
 
 
 class LoginSession(Base):

@@ -16,7 +16,12 @@ def test_schedule_scope_and_direct_foreign_lesson(signed, client):
     a, b, staff = signed('student.a'), signed('student.b'), signed('staff.a')
     first = a.get('/api/v1/schedule' + WEEK).json()
     second = b.get('/api/v1/schedule' + WEEK).json()
-    assert len(first) == 4 and len(second) == 3
+    for lessons in (first, second):
+        assert len(lessons) >= 15
+        assert len({row['teacher_id'] for row in lessons}) >= 6
+        unique_days = {datetime.fromisoformat(row['starts_at']).astimezone(MOSCOW).date() for row in lessons}
+        assert unique_days == {date(2026, 11, 9) + timedelta(days=i) for i in range(5)}
+        assert all(previous['ends_at'] <= current['starts_at'] for previous, current in zip(lessons, lessons[1:]))
     assert {r['group'] for r in first} == {'ОН-201'}
     assert {r['group'] for r in second} == {'ЦТ-202'}
     assert not ({r['id'] for r in first} & {r['id'] for r in second})
@@ -32,7 +37,8 @@ def test_today_empty_day_and_range_validation(signed):
     a = signed('student.a')
     assert a.get('/api/v1/study-context').json()['today'] == '2026-11-13'
     today = a.get('/api/v1/schedule').json()
-    assert len(today) == 2
+    assert len(today) == 3
+    assert len(a.get('/api/v1/schedule?start=2026-11-16&end=2026-11-20').json()) == 15
     assert a.get('/api/v1/schedule?start=2026-11-15&end=2026-11-15').json() == []
     for query in ['start=2026-11-15&end=2026-11-13', 'start=2026-11-01&end=2026-12-02', 'start=invalid', 'start=9999-12-31']:
         assert a.get('/api/v1/schedule?' + query).status_code == 422
@@ -155,12 +161,18 @@ def test_study_seed_preserves_date_changes_and_counts(database):
     with SessionLocal() as db:
         consultation = db.scalar(select(Lesson).where(Lesson.demo_key == 'a-consultation'))
         consultation.place = room_for(db, 'Северный корпус', '501')
+        moved = db.scalar(select(Lesson).where(Lesson.demo_key == 'a-moved'))
+        starts_at = moved.starts_at + timedelta(hours=7)
+        moved.starts_at = starts_at
+        moved.ends_at += timedelta(hours=7)
         result = db.scalar(select(AcademicResult).where(AcademicResult.demo_key == 'a-exam'))
         result.grade = 3
+        lessons_before = set(db.scalars(select(Lesson.id)))
         db.commit()
         seed(db, database, demo_date=date(2030, 1, 1))
         assert db.get(StudyScenario, 1).reference_date == date(2026, 11, 13)
-        assert db.scalar(select(func.count()).select_from(Lesson)) == 7
+        assert set(db.scalars(select(Lesson.id))) == lessons_before
         assert db.scalar(select(func.count()).select_from(LessonChange)) == 2
         assert db.scalar(select(func.count()).select_from(AcademicResult)) == 10
         assert consultation.place.number == '501' and result.grade == 3
+        assert moved.starts_at == starts_at

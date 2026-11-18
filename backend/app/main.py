@@ -1,5 +1,5 @@
 import secrets
-from datetime import timedelta
+from datetime import datetime, timedelta
 from fastapi import FastAPI, APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -15,7 +15,7 @@ from .schemas import ContactsIn, LoginIn, RequestIn, TransitionIn, ReplyIn
 from .security import (COOKIE, passwords, DUMMY_HASH, digest, current_session, current_user,
                        student, staff, csrf, require_origin, new_session)
 from .pdf import certificate
-from .study import router as study_router
+from .study import MOSCOW, router as study_router
 from .campus import router as campus_router, visible_announcements
 
 app = FastAPI(title='Цифровой деканат — конкурсный прототип', version='0.1.0')
@@ -49,6 +49,14 @@ def profile(user, db, contacts=False):
         group_id=user.group_id, course=user.course, direction=user.direction)
     if contacts:
         data.update(contact_email=user.contact_email, contact_phone=user.contact_phone)
+        if user.role == 'student':
+            birthday = user.birth_date
+            today = datetime.now(MOSCOW).date()
+            age = None
+            if birthday and birthday <= today:
+                age = today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
+            data.update(university='Университет Северного кампуса', age=age,
+                        study_mode=user.study_mode, student_card_number=user.student_card_number)
     return data
 
 

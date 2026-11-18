@@ -14,7 +14,15 @@ def test_contacts_are_validated_and_private(signed):
     assert b.get('/api/v1/me').json()['contact_email'] is None
     assert staff.patch(path, json=data).status_code == 403
     req = a.post('/api/v1/requests', json=dict(purpose='Учебный центр', idempotency_key=str(uuid4()))).json()
-    assert 'contact_email' not in staff.get(f"/api/v1/staff/requests/{req['id']}").json()['student']
+    a_profile = a.get('/api/v1/me').json()
+    b_profile = b.get('/api/v1/me').json()
+    assert a_profile['university'] == 'Университет Северного кампуса'
+    assert a_profile['age'] >= 18 and b_profile['age'] >= 18
+    assert a_profile['study_mode'] == 'Очная'
+    assert b_profile['student_card_number'] != a_profile['student_card_number']
+    request_profile = staff.get(f"/api/v1/staff/requests/{req['id']}").json()['student']
+    assert not set(request_profile).intersection({'contact_email', 'birth_date', 'age', 'student_card_number'})
+    assert a.patch(path, json={**data, 'student_card_number': 'СК-0000'}).status_code == 422
 
 
 def test_route_uses_current_room_and_notification_scope(signed):

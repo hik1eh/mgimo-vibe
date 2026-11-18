@@ -1,9 +1,54 @@
+from collections import defaultdict
 from datetime import datetime, time, timedelta
 from sqlalchemy import select
 from .config import settings
 from .models import StudyScenario, Lesson, LessonChange, AcademicResult, User
 from .study import MOSCOW
 from .campus_map import room_for, teacher_for
+
+
+SOCIAL_SCIENCES = {
+    'sociology': ('Социология повседневности', 'Елена Лазурная', 'Семинар', '412'),
+    'methods': ('Методы социальных исследований', 'Павел Кедров', 'Лекция', '210'),
+    'writing': ('Академическое письмо', 'Софья Снегирева', 'Практика', '305'),
+    'history': ('История социальных идей', 'Роман Береговой', 'Лекция', '210'),
+    'statistics': ('Прикладная статистика', 'Вера Тихолесова', 'Практика', '412'),
+    'ethics': ('Профессиональная этика', 'Илья Светлов', 'Семинар', '305'),
+    'culture': ('Культурология', 'Майя Вишнева', 'Лекция', '210'),
+}
+DIGITAL_TECHNOLOGY = {
+    'algorithms': ('Алгоритмы и структуры данных', 'Лев Ясный', 'Практика', '602'),
+    'design': ('Проектирование интерфейсов', 'Дарья Туманова', 'Лекция', '504'),
+    'logic': ('Математическая логика', 'Олег Кленов', 'Семинар', '310'),
+    'programming': ('Основы программирования', 'Яна Серебрина', 'Практика', '506'),
+    'databases': ('Базы данных', 'Константин Озеров', 'Лабораторная', '602'),
+    'networks': ('Компьютерные сети', 'Наталья Горская', 'Лекция', '504'),
+    'project': ('Проектный практикум', 'Фёдор Ветлов', 'Практика', '310'),
+}
+
+
+def seed_demo_weeks(db, week, user, prefix, building, hours, courses, timetable, reserved):
+    since = datetime.combine(week, time.min, MOSCOW)
+    until = since + timedelta(weeks=2)
+    occupied = list(reserved)
+    occupied.extend(db.execute(select(Lesson.starts_at, Lesson.ends_at).where(
+        Lesson.group_id == user.group_id, Lesson.starts_at < until, Lesson.ends_at > since)))
+    existing_keys = set(db.scalars(select(Lesson.demo_key).where(
+        Lesson.demo_key.startswith(f'{prefix}-timetable-'))))
+    for week_offset in range(2):
+        for weekday, subjects in enumerate(timetable):
+            day = week + timedelta(weeks=week_offset, days=weekday)
+            for hour, name in zip(hours, subjects, strict=True):
+                key = f'{prefix}-timetable-{day.isoformat()}-{hour}'
+                starts = datetime.combine(day, time(hour), MOSCOW)
+                ends = starts + timedelta(minutes=90)
+                if key in existing_keys or any(start < ends and end > starts for start, end in occupied):
+                    continue
+                subject, teacher, kind, room = courses[name]
+                db.add(Lesson(demo_key=key, group_id=user.group_id, subject=subject,
+                              instructor=teacher_for(db, teacher), kind=kind, place=room_for(db, building, room),
+                              starts_at=starts, ends_at=ends, status='scheduled'))
+                occupied.append((starts, ends))
 
 
 def snapshot(lesson):
@@ -29,13 +74,16 @@ def seed_study(db, demo_date=None):
         ('b-second', b, week + timedelta(days=2), 12, 'Проектирование интерфейсов', 'Дарья Туманова', 'Лекция', 'Технологический корпус', '504', 'scheduled'),
         ('b-friday', b, week + timedelta(days=4), 14, 'Математическая логика', 'Олег Кленов', 'Семинар', 'Технологический корпус', '310', 'scheduled'),
     ]
+    original_slots = defaultdict(list)
     for key, user, day, hour, subject, teacher, kind, building, room, status in definitions:
+        starts = datetime.combine(day, time(hour), MOSCOW)
+        ends = starts + timedelta(minutes=90)
+        original_slots[user.group_id].append((starts, ends))
         if db.scalar(select(Lesson.id).where(Lesson.demo_key == key)):
             continue
-        starts = datetime.combine(day, time(hour), MOSCOW)
         lesson = Lesson(demo_key=key, group_id=user.group_id, subject=subject, instructor=teacher_for(db, teacher),
             kind=kind, place=room_for(db, building, room), status=status,
-            starts_at=starts, ends_at=starts + timedelta(minutes=90))
+            starts_at=starts, ends_at=ends)
         db.add(lesson)
         db.flush()
         if status in ('moved', 'cancelled'):
@@ -44,6 +92,21 @@ def seed_study(db, demo_date=None):
             db.add(LessonChange(lesson_id=lesson.id, actor_id=staff.id, before=before, after=after,
                 reason='Смена аудитории: 305 → 412.' if status == 'moved' else 'Отмена демонстрационного занятия.',
                 created_at=datetime.combine(week - timedelta(days=1), time(16), MOSCOW)))
+
+    seed_demo_weeks(db, week, a, 'a', 'Северный корпус', (9, 11, 13), SOCIAL_SCIENCES, (
+        ('sociology', 'methods', 'writing'),
+        ('history', 'statistics', 'culture'),
+        ('sociology', 'ethics', 'writing'),
+        ('methods', 'culture', 'history'),
+        ('statistics', 'sociology', 'ethics'),
+    ), original_slots[a.group_id])
+    seed_demo_weeks(db, week, b, 'b', 'Технологический корпус', (10, 12, 14), DIGITAL_TECHNOLOGY, (
+        ('algorithms', 'design', 'programming'),
+        ('networks', 'logic', 'databases'),
+        ('programming', 'design', 'project'),
+        ('algorithms', 'databases', 'networks'),
+        ('design', 'project', 'logic'),
+    ), original_slots[b.group_id])
     for user, prefix, subjects in [
         (a, 'a', ['Социология повседневности', 'Методы социальных исследований', 'История социальных идей', 'Академическое письмо']),
         (b, 'b', ['Алгоритмы и структуры данных', 'Математическая логика', 'Проектирование интерфейсов', 'Основы программирования']),
