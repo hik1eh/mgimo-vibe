@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     demo_student_a_password: str = ''
     demo_student_b_password: str = ''
     demo_staff_password: str = ''
+    demo_teacher_password: str = ''
     demo_date: date | None = None
 
 

@@ -7,6 +7,9 @@ from .study import MOSCOW
 from .campus_map import room_for, teacher_for
 
 
+DEMO_SEMESTER = 3
+
+
 SOCIAL_SCIENCES = {
     'sociology': ('Социология повседневности', 'Елена Лазурная', 'Семинар', '412'),
     'methods': ('Методы социальных исследований', 'Павел Кедров', 'Лекция', '210'),
@@ -47,7 +50,7 @@ def seed_demo_weeks(db, week, user, prefix, building, hours, courses, timetable,
                 subject, teacher, kind, room = courses[name]
                 db.add(Lesson(demo_key=key, group_id=user.group_id, subject=subject,
                               instructor=teacher_for(db, teacher), kind=kind, place=room_for(db, building, room),
-                              starts_at=starts, ends_at=ends, status='scheduled'))
+                              starts_at=starts, ends_at=ends, status='scheduled', semester=DEMO_SEMESTER))
                 occupied.append((starts, ends))
 
 
@@ -83,7 +86,7 @@ def seed_study(db, demo_date=None):
             continue
         lesson = Lesson(demo_key=key, group_id=user.group_id, subject=subject, instructor=teacher_for(db, teacher),
             kind=kind, place=room_for(db, building, room), status=status,
-            starts_at=starts, ends_at=ends)
+            starts_at=starts, ends_at=ends, semester=DEMO_SEMESTER)
         db.add(lesson)
         db.flush()
         if status in ('moved', 'cancelled'):
@@ -112,10 +115,10 @@ def seed_study(db, demo_date=None):
         (b, 'b', ['Алгоритмы и структуры данных', 'Математическая логика', 'Проектирование интерфейсов', 'Основы программирования']),
     ]:
         definitions = [
-            ('upcoming', subjects[0], 3, 'credit', 'upcoming', 5, None, None),
-            ('awaiting', subjects[1], 3, 'exam', 'awaiting', -1, None, None),
-            ('credit', subjects[2], 3, 'credit', 'published', -3, None, True),
-            ('exam', subjects[3], 3, 'exam', 'published', -2, 5 if prefix == 'a' else 4, None),
+            ('upcoming', subjects[0], DEMO_SEMESTER, 'credit', 'upcoming', 5, None, None),
+            ('awaiting', subjects[1], DEMO_SEMESTER, 'exam', 'awaiting', -1, None, None),
+            ('credit', subjects[2], DEMO_SEMESTER, 'credit', 'published', -3, None, True),
+            ('exam', subjects[3], DEMO_SEMESTER, 'exam', 'published', -2, 5 if prefix == 'a' else 4, None),
             ('previous', 'Иностранный язык' if prefix == 'a' else 'Дискретная математика', 2, 'exam', 'published', -120, 4 if prefix == 'a' else 5, None),
         ]
         for key, subject, semester, kind, status, offset, grade, passed in definitions:

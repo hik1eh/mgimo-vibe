@@ -4,6 +4,7 @@ import { useResource } from "./ui";
 import { CampusObject, type CampusModel } from "./campus-object";
 import type { StudyContext } from "./study-types";
 import { CampusPreview } from "./campus-preview";
+import type { User } from "./api";
 
 type Banner = { title: string; subtitle?: string; model: CampusModel };
 
@@ -13,11 +14,12 @@ const studentBanners: Record<string, Banner> = {
   "/academic-results": { title: "Оценки", model: "record" },
   "/requests": {
     title: "Заявки",
-    subtitle: "Справки об обучении",
+    subtitle: "Справки и обращения",
     model: "letter",
   },
   "/notifications": { title: "Уведомления", model: "bell" },
   "/profile": { title: "Информация о студенте", model: "clip" },
+  "/teachers": { title: "Преподаватели", model: "record" },
 };
 
 const staffBanners: Record<string, Banner> = {
@@ -26,6 +28,23 @@ const staffBanners: Record<string, Banner> = {
   "/staff/announcements": { title: "Объявления факультета", model: "archive" },
   "/staff/academic-results": { title: "Успеваемость", model: "archive" },
   "/profile": { title: "Профиль сотрудника", model: "clip" },
+};
+
+const teachingBanners: Record<string, Banner> = {
+  "/teaching": { title: "Учебный журнал", model: "record" },
+  "/profile": { title: "Профиль преподавателя", model: "clip" },
+};
+
+const banners: Record<User["role"], Record<string, Banner>> = {
+  student: studentBanners,
+  staff: staffBanners,
+  teacher: teachingBanners,
+};
+
+const bannerLabels: Record<User["role"], string> = {
+  student: "Северный кампус",
+  staff: "Кабинет сотрудника",
+  teacher: "Кабинет преподавателя",
 };
 
 function TodayDate() {
@@ -48,16 +67,17 @@ function TodayDate() {
 }
 
 export function SectionBanner({
-  staff,
+  role,
   faculty,
   keyboard,
 }: {
-  staff: boolean;
+  role: User["role"];
   faculty: string;
   keyboard: boolean;
 }) {
   const { pathname } = useLocation();
-  const banner = (staff ? staffBanners : studentBanners)[pathname];
+  const employee = role !== "student";
+  const banner = banners[role][pathname];
   const entry = useRef({
     path: pathname,
     seen: Boolean(banner),
@@ -76,7 +96,7 @@ export function SectionBanner({
     <section
       className="section-banner campus-banner"
       data-section={pathname}
-      data-staff={staff || undefined}
+      data-staff={employee || undefined}
       aria-labelledby="section-title"
     >
       <div className="campus-banner-inner">
@@ -86,7 +106,7 @@ export function SectionBanner({
           data-enter={animate || undefined}
         >
           <p className="campus-banner-eyebrow">
-            {staff ? "Кабинет сотрудника" : "Северный кампус"}
+            {bannerLabels[role]}
           </p>
           <h1 id="section-title">{banner.title}</h1>
           {pathname === "/today" ? (
@@ -95,9 +115,9 @@ export function SectionBanner({
               <CampusPreview className="campus-banner-preview" />
             </>
           ) : (
-            (staff || banner.subtitle) && (
+            (employee || banner.subtitle) && (
               <p className="section-banner__date">
-                {staff ? faculty : banner.subtitle}
+                {employee ? faculty : banner.subtitle}
               </p>
             )
           )}

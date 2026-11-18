@@ -8,6 +8,7 @@ from .security import passwords
 from .study_seed import seed_study
 from .campus_seed import seed_announcements
 from .campus_map import seed_maps
+from .teaching_seed import seed_teaching
 
 
 def seed(db, credentials, demo_date=None):
@@ -53,16 +54,21 @@ def seed(db, credentials, demo_date=None):
     seed_maps(db)
     seed_study(db, demo_date)
     db.flush()
+    seed_teaching(db, groups[0].faculty_id, credentials.get('teacher.a', ''))
     seed_announcements(db)
     db.commit()
+
+
+def demo_credentials():
+    return {'student.a': settings.demo_student_a_password, 'student.b': settings.demo_student_b_password,
+            'staff.a': settings.demo_staff_password, 'teacher.a': settings.demo_teacher_password}
 
 
 def main():
     parser = argparse.ArgumentParser(description='Идемпотентное демонаполнение. Не сбрасывает действия и пароли.')
     parser.parse_args()
     with SessionLocal() as db:
-        seed(db, {'student.a': settings.demo_student_a_password,
-                  'student.b': settings.demo_student_b_password, 'staff.a': settings.demo_staff_password})
+        seed(db, demo_credentials())
     print('Демопрофили готовы. Существующие записи сохранены.')
 
 

@@ -9,19 +9,26 @@ import {
 } from "@phosphor-icons/react";
 import type { AcademicPayload } from "./study-types";
 import { campusDay, campusTime, dayLabel } from "./study-dates";
-
-const pages = ["Прогресс", "Результаты", "Контрольные даты"];
+import { EngagementMetrics } from "./study-engagement";
 
 export function SemesterStories({ data }: { data: AcademicPayload }) {
   const [open, setOpen] = useState(false);
-  const [step, setStep] = useState(0);
+  const [selectedStep, setStep] = useState(0);
   const [animate, setAnimate] = useState(false);
   useEffect(() => {
     const close = () => setOpen(false);
     window.addEventListener("session-expired", close);
     return () => window.removeEventListener("session-expired", close);
   }, []);
-  if (!data.results.length) return null;
+  const engagement = data.engagement?.subjects.length ? data.engagement : null;
+  if (!data.results.length && !engagement) return null;
+  const pages = [
+    { label: "Прогресс", title: "Итоги семестра" },
+    { label: "Результаты", title: "Опубликованные результаты" },
+    { label: "Контрольные даты", title: "Что дальше" },
+  ];
+  if (engagement) pages.push({ label: "Занятия", title: "Посещаемость и контрольные точки" });
+  const step = Math.min(selectedStep, pages.length - 1);
 
   const published = data.results.filter((row) => row.status === "published");
   const upcoming = data.results.filter(
@@ -76,24 +83,18 @@ export function SemesterStories({ data }: { data: AcademicPayload }) {
             </header>
             <div className="story-progress" aria-hidden="true">
               {pages.map((page, index) => (
-                <span key={page} data-active={index <= step || undefined} />
+                <span key={page.label} data-active={index <= step || undefined} />
               ))}
             </div>
             <p className="story-count" role="status">
-              Шаг {step + 1} из {pages.length} · {pages[step]}
+              Шаг {step + 1} из {pages.length} · {pages[step].label}
             </p>
             <div
               className="story-body"
               key={step}
               data-enter={animate || undefined}
             >
-              <Dialog.Title>
-                {
-                  ["Итоги семестра", "Опубликованные результаты", "Что дальше"][
-                    step
-                  ]
-                }
-              </Dialog.Title>
+              <Dialog.Title>{pages[step].title}</Dialog.Title>
               {step === 0 && (
                 <>
                   <p className="story-stat">
@@ -147,6 +148,7 @@ export function SemesterStories({ data }: { data: AcademicPayload }) {
                       : "В этом семестре нет предстоящих контрольных дат."}
                   </p>
                 ))}
+              {step === 3 && engagement && <EngagementMetrics data={engagement} />}
             </div>
             <footer className="story-controls">
               <button

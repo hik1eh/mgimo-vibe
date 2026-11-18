@@ -15,8 +15,10 @@ from .schemas import ContactsIn, LoginIn, RequestIn, TransitionIn, ReplyIn
 from .security import (COOKIE, passwords, DUMMY_HASH, digest, current_session, current_user,
                        student, staff, csrf, require_origin, new_session)
 from .pdf import certificate
+from .request_types import REQUEST_TYPES, RequestKind
 from .study import MOSCOW, router as study_router
 from .campus import router as campus_router, visible_announcements
+from .teaching import router as teaching_router
 
 app = FastAPI(title='Цифровой деканат — конкурсный прототип', version='0.1.0')
 api = APIRouter(prefix='/api/v1')
@@ -61,19 +63,27 @@ def profile(user, db, contacts=False):
 
 
 def request_data(req, db, detail=False):
+    service = REQUEST_TYPES[req.kind]
     data = dict(id=req.id, number=req.number, status=req.status, version=req.version,
-        type='Справка об обучении', purpose=req.purpose, created_at=req.created_at,
-        due_at=req.due_at, delivery='Электронный PDF', student=profile(req.student, db))
+        kind=req.kind, type=service.label, purpose=req.purpose, purpose_label=service.purpose_label,
+        created_at=req.created_at, due_at=req.due_at, delivery=service.delivery,
+        has_document=service.pdf, student=profile(req.student, db))
     if detail:
         data['events'] = [dict(id=e.id, kind=e.kind, text=e.text, created_at=e.created_at,
             actor=e.actor.full_name, role=e.actor.role) for e in req.events]
-        data['document_url'] = f'/api/v1/requests/{req.id}/document' if req.status == 'ready' and db.get(Document, req.id) else None
+        available = service.pdf and req.status == 'ready' and db.get(Document, req.id) is not None
+        data['document_url'] = f'/api/v1/requests/{req.id}/document' if available else None
     return data
 
 
 def visible_request(request_id, user, db):
     stmt = select(CR).join(User, CR.student_id == User.id).where(CR.id == request_id)
-    stmt = stmt.where(CR.student_id == user.id) if user.role == 'student' else stmt.where(User.faculty_id == user.faculty_id)
+    if user.role == 'student':
+        stmt = stmt.where(CR.student_id == user.id)
+    elif user.role == 'staff':
+        stmt = stmt.where(User.faculty_id == user.faculty_id)
+    else:
+        raise HTTPException(403, 'У этой роли нет доступа к заявкам.')
     req = db.scalar(stmt)
     if not req:
         raise HTTPException(404, 'Заявка недоступна.')
@@ -161,29 +171,43 @@ def requests(user=Depends(student), db: Session = Depends(get_db)):
     return [request_data(r, db) for r in db.scalars(select(CR).where(CR.student_id == user.id).order_by(CR.id.desc()))]
 
 
+@api.get('/request-types')
+def request_types(user=Depends(current_user)):
+    if user.role not in ('student', 'staff'):
+        raise HTTPException(403, 'У этой роли нет доступа к заявкам.')
+    return [dict(kind=kind, label=service.label, purpose_label=service.purpose_label,
+                 placeholder=service.placeholder, delivery=service.delivery, has_document=service.pdf)
+            for kind, service in REQUEST_TYPES.items()]
+
+
 @api.post('/requests', status_code=201, dependencies=[Depends(csrf)])
 def create_request(data: RequestIn, user=Depends(student), db: Session = Depends(get_db)):
     key = str(data.idempotency_key)
+
     def existing():
         return db.scalar(select(CR).where(CR.student_id == user.id, CR.idempotency_key == key))
-    req = existing()
-    if req:
-        if req.purpose != data.purpose:
+
+    def retry(req):
+        if (req.kind, req.purpose) != (data.kind, data.purpose):
             raise HTTPException(409, 'Ключ отправки уже использован. Обновите форму.')
         return request_data(req, db, True)
-    req = CR(student_id=user.id, purpose=data.purpose, idempotency_key=key, due_at=due_date())
+
+    req = existing()
+    if req:
+        return retry(req)
+    req = CR(student_id=user.id, kind=data.kind, purpose=data.purpose, idempotency_key=key, due_at=due_date())
+    service = REQUEST_TYPES[data.kind]
     db.add(req)
     try:
         db.flush()
-        event(db, req, user, 'accepted', 'Заявка принята. Электронная выдача — до 2 рабочих дней.')
+        event(db, req, user, 'accepted', f'Заявка принята. {service.delivery} — до 2 рабочих дней.')
         db.commit()
     except IntegrityError:
         db.rollback()
         req = existing()
         if not req:
             raise
-        if req.purpose != data.purpose:
-            raise HTTPException(409, 'Ключ отправки уже использован.')
+        return retry(req)
     return request_data(req, db, True)
 
 
@@ -195,6 +219,8 @@ def request_detail(request_id: int, user=Depends(student), db: Session = Depends
 @api.get('/requests/{request_id}/document')
 def download(request_id: int, user=Depends(student), db: Session = Depends(get_db)):
     req = visible_request(request_id, user, db)
+    if not REQUEST_TYPES[req.kind].pdf:
+        raise HTTPException(404, 'У заявки нет PDF. Проверьте историю в карточке.')
     if req.status != 'ready' or not db.get(Document, req.id):
         raise HTTPException(409, 'Документ ещё не готов.')
     content = certificate(req, db.get(Faculty, user.faculty_id), db.get(Group, user.group_id))
@@ -216,12 +242,15 @@ def reply(request_id: int, data: ReplyIn, user=Depends(student), db: Session = D
 
 @api.get('/staff/requests')
 def staff_requests(q: str = '', status: str = '', group_id: int | None = None,
+                   kind: RequestKind | None = None,
                    user=Depends(staff), db: Session = Depends(get_db)):
     stmt = select(CR).join(User, CR.student_id == User.id).where(User.faculty_id == user.faculty_id)
     if status:
         stmt = stmt.where(CR.status == status)
     if group_id is not None:
         stmt = stmt.where(User.group_id == group_id)
+    if kind is not None:
+        stmt = stmt.where(CR.kind == kind)
     rows = db.scalars(stmt.order_by(CR.id.desc()))
     return [request_data(r, db) for r in rows if q.strip().lower() in r.number.lower()]
 
@@ -234,19 +263,25 @@ def staff_detail(request_id: int, user=Depends(staff), db: Session = Depends(get
 @api.post('/staff/requests/{request_id}/transitions', dependencies=[Depends(csrf)])
 def transition(request_id: int, data: TransitionIn, user=Depends(staff), db: Session = Depends(get_db)):
     req = visible_request(request_id, user, db)
+    service = REQUEST_TYPES[req.kind]
     target, source, text = {
         'start': ('in_progress', 'accepted', 'Сотрудник взял заявку в работу.'),
         'clarify': ('needs_info', 'in_progress', data.text.strip()),
-        'complete': ('ready', 'in_progress', 'Справка готова. Доступен демонстрационный PDF.'),
+        'complete': ('ready', 'in_progress', service.result_text),
     }[data.action]
     if data.action == 'clarify' and not text:
         raise HTTPException(422, 'Напишите вопрос студенту.')
     if req.status != source or req.version != data.version:
         raise HTTPException(409, 'Действие уже выполнено или недоступно. Обновите карточку.')
+    if target == 'ready' and not service.pdf:
+        text = data.text.strip()
+        if not text:
+            raise HTTPException(422, 'Напишите ответ для студента.')
     req.status = target
     event(db, req, user, target, text)
-    notify(db, req, {'in_progress': 'Заявка в работе', 'needs_info': 'Нужно уточнение по заявке', 'ready': 'Ваша справка готова'}[target])
-    if target == 'ready':
+    ready_title = 'Ваша справка готова' if req.kind == RequestKind.STUDY else service.result_text.rstrip('.')
+    notify(db, req, {'in_progress': 'Заявка в работе', 'needs_info': 'Нужно уточнение по заявке', 'ready': ready_title}[target])
+    if target == 'ready' and service.pdf:
         db.add(Document(request_id=req.id))
     save(db)
     db.refresh(req)
@@ -303,6 +338,7 @@ def read_notification(notification_id: int, user=Depends(student), db: Session =
 app.include_router(api)
 app.include_router(study_router)
 app.include_router(campus_router)
+app.include_router(teaching_router)
 dist = ROOT / 'frontend' / 'dist'
 if (dist / 'assets').exists():
     app.mount('/assets', StaticFiles(directory=dist / 'assets'), name='assets')

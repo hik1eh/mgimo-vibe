@@ -1,0 +1,248 @@
+.cabinet-header .additional-trigger {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--on-navy);
+  background: transparent;
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.cabinet-header .additional-trigger[data-popup-open] {
+  background: var(--header-active);
+}
+
+.additional-short {
+  display: none;
+}
+
+.additional-positioner {
+  z-index: 90;
+}
+
+.additional-menu {
+  width: min(248px, calc(100vw - 24px));
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--navy);
+  box-shadow: 0 9px 28px #102a4029;
+}
+
+.additional-menu a {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: inherit;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.additional-menu a[data-highlighted] {
+  background: var(--surface-accent);
+  color: var(--blue-hover);
+}
+
+.directory-heading p {
+  margin: 6px 0 0;
+}
+
+.faculty-directory {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.faculty-directory .panel {
+  margin: 0;
+}
+
+.faculty-directory h3 {
+  margin: 4px 0 6px;
+  overflow-wrap: anywhere;
+}
+
+.faculty-directory p {
+  margin: 0 0 8px;
+}
+
+.teacher-contact .teacher-email {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 15px 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.teacher-email svg {
+  flex: none;
+}
+
+.teaching-directory .secondary {
+  margin-top: 6px;
+}
+
+.journal-entry fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.journal-entry legend {
+  margin-bottom: 12px;
+  padding: 0;
+  font-weight: 750;
+}
+
+.journal-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.journal-entry .journal-fields label {
+  margin: 0;
+}
+
+.journal-fields select,
+.service-select select {
+  min-width: 0;
+  width: 100%;
+}
+
+.request-entry-actions {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.cabinet-app .request-entry-actions .request-create {
+  margin: 0;
+}
+
+.engagement-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.engagement-metrics > div {
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--surface-subtle);
+}
+
+.engagement-metrics dd {
+  margin: 3px 0 0;
+  font-size: 1.125rem;
+  font-weight: 750;
+}
+
+.engagement-subjects {
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.engagement-subjects > li {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+.engagement-subjects h3 {
+  margin: 0;
+}
+
+.semester-dialog .engagement-metrics > div {
+  background: #ffffff13;
+}
+
+.semester-dialog .engagement-metrics dt {
+  color: var(--on-navy);
+}
+
+.cabinet-footer a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+
+@media (min-width: 1001px) {
+  .cabinet-app .student-header .student-nav {
+    grid-area: 1 / 2;
+  }
+  .cabinet-app .student-header .header-user {
+    grid-area: 1 / 3;
+  }
+  .cabinet-app .student-header .account-link {
+    gap: 6px;
+    padding-inline: 8px;
+    font-size: 0.8125rem;
+  }
+  .cabinet-header .additional-trigger .additional-caret {
+    display: none;
+  }
+}
+
+@media (min-width: 1001px) and (max-width: 1399px) {
+  .cabinet-header .additional-trigger .additional-text {
+    display: none;
+  }
+}
+
+@media (min-width: 1001px) and (max-width: 1280px) {
+  .cabinet-app .student-header .account-text {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .cabinet-app .cabinet-header .teaching-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cabinet-header .additional-trigger .additional-caret {
+    display: none;
+  }
+}
+
+@media (max-width: 580px) {
+  .cabinet-header .additional-trigger {
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    gap: 2px;
+    padding: 0 4px;
+  }
+  .cabinet-header .additional-trigger .additional-text {
+    display: none;
+  }
+  .cabinet-header .additional-trigger .additional-short {
+    display: block;
+    font-size: 10px;
+  }
+  .cabinet-app .campus-banner[data-section="/teachers"] h1 {
+    font-size: clamp(29px, 7.4vw, 42px);
+  }
+  .journal-fields {
+    grid-template-columns: 1fr;
+  }
+}

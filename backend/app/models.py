@@ -3,6 +3,7 @@ from sqlalchemy import (String, Integer, Text, Date, DateTime, ForeignKey, Forei
                         UniqueConstraint, CheckConstraint, Boolean, JSON)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .db import Base
+from .request_types import REQUEST_TYPES
 
 
 def now():
@@ -27,8 +28,15 @@ class User(Base):
     __tablename__ = 'users'
     __table_args__ = (
         ForeignKeyConstraint(['group_id', 'faculty_id'], ['groups.id', 'groups.faculty_id']),
-        CheckConstraint("role IN ('student','staff')", name='user_role'),
-        CheckConstraint("(role='student' AND group_id IS NOT NULL AND course IS NOT NULL AND course BETWEEN 1 AND 6 AND direction IS NOT NULL) OR (role='staff' AND group_id IS NULL)", name='profile_role'),
+        UniqueConstraint('teacher_id', name='user_teacher_account'),
+        CheckConstraint("role IN ('student','staff','teacher')", name='user_role'),
+        CheckConstraint(
+            "(role='student' AND group_id IS NOT NULL AND course IS NOT NULL AND course BETWEEN 1 AND 6 "
+            "AND direction IS NOT NULL AND teacher_id IS NULL) OR "
+            "(role='staff' AND group_id IS NULL AND teacher_id IS NULL) OR "
+            "(role='teacher' AND group_id IS NULL AND teacher_id IS NOT NULL)",
+            name='profile_role',
+        ),
     )
     id: Mapped[int] = mapped_column(primary_key=True)
     login: Mapped[str] = mapped_column(String(80), unique=True)
@@ -45,6 +53,7 @@ class User(Base):
     birth_date: Mapped[date | None] = mapped_column(Date)
     study_mode: Mapped[str | None] = mapped_column(String(32))
     student_card_number: Mapped[str | None] = mapped_column(String(40))
+    teacher_id: Mapped[int | None] = mapped_column(ForeignKey('teachers.id', name='user_teacher_fk'))
 
 
 class LoginSession(Base):
@@ -60,11 +69,16 @@ class CertificateRequest(Base):
     __table_args__ = (
         UniqueConstraint('student_id', 'idempotency_key'),
         CheckConstraint("status IN ('accepted','in_progress','needs_info','ready')", name='request_status'),
+        CheckConstraint(
+            "kind IN ('study','practice','military','retake','academic_leave','dean_message')",
+            name='request_kind',
+        ),
     )
     id: Mapped[int] = mapped_column(primary_key=True)
     student_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
     idempotency_key: Mapped[str] = mapped_column(String(36))
     purpose: Mapped[str] = mapped_column(String(500))
+    kind: Mapped[str] = mapped_column(String(30), server_default='study')
     status: Mapped[str] = mapped_column(String(30), default='accepted', index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
@@ -75,7 +89,7 @@ class CertificateRequest(Base):
 
     @property
     def number(self):
-        return f'СО-{self.id:06d}'
+        return f'{REQUEST_TYPES[self.kind].prefix}-{self.id:06d}'
 
 
 class RequestEvent(Base):
@@ -127,6 +141,8 @@ class Teacher(Base):
     __tablename__ = 'teachers'
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(180))
+    full_name: Mapped[str | None] = mapped_column(String(180))
+    work_email: Mapped[str | None] = mapped_column(String(254))
 
 
 class CampusRoom(Base):
@@ -145,12 +161,13 @@ class Lesson(Base):
         UniqueConstraint('id', 'group_id', name='lesson_id_group'),
         CheckConstraint('ends_at > starts_at', name='lesson_time_order'),
         CheckConstraint("status IN ('scheduled','moved','cancelled')", name='lesson_status'),
+        CheckConstraint('semester BETWEEN 1 AND 12', name='lesson_semester'),
     )
     id: Mapped[int] = mapped_column(primary_key=True)
     demo_key: Mapped[str | None] = mapped_column(String(80), unique=True, nullable=True)
     group_id: Mapped[int] = mapped_column(ForeignKey('groups.id'), index=True)
     subject: Mapped[str] = mapped_column(String(180))
-    teacher_id: Mapped[int] = mapped_column(ForeignKey('teachers.id', name='lesson_teacher_fk'))
+    teacher_id: Mapped[int] = mapped_column(ForeignKey('teachers.id', name='lesson_teacher_fk'), index=True)
     instructor: Mapped[Teacher] = relationship()
     kind: Mapped[str] = mapped_column(String(50))
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
@@ -158,6 +175,7 @@ class Lesson(Base):
     room_id: Mapped[int] = mapped_column(ForeignKey('campus_rooms.id', name='lesson_room_fk'))
     place: Mapped[CampusRoom] = relationship()
     status: Mapped[str] = mapped_column(String(20), default='scheduled')
+    semester: Mapped[int | None] = mapped_column(Integer)
     version: Mapped[int] = mapped_column(Integer, default=1)
     __mapper_args__ = {'version_id_col': version}
     group: Mapped[Group] = relationship()
@@ -173,6 +191,19 @@ class LessonChange(Base):
     after: Mapped[dict] = mapped_column(JSON)
     reason: Mapped[str] = mapped_column(String(500))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class LessonJournal(Base):
+    __tablename__ = 'lesson_journal'
+    __table_args__ = (
+        CheckConstraint("attendance IN ('present','absent')", name='journal_attendance'),
+        CheckConstraint("checkpoint IN ('completed','pending')", name='journal_checkpoint'),
+    )
+    lesson_id: Mapped[int] = mapped_column(ForeignKey('lessons.id'), primary_key=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey('users.id'), primary_key=True, index=True)
+    attendance: Mapped[str | None] = mapped_column(String(12))
+    checkpoint: Mapped[str | None] = mapped_column(String(12))
+    version: Mapped[int] = mapped_column(Integer, default=1)
 
 
 class AcademicResult(Base):

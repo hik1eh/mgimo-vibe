@@ -44,12 +44,22 @@ export type AcademicResult = {
   passed: boolean;
   label: string;
 };
+export type JournalCounts = {
+  present: number;
+  absent: number;
+  completed: number;
+  pending: number;
+};
+export type StudyEngagement = JournalCounts & {
+  subjects: (JournalCounts & { subject: string })[];
+};
 export type AcademicPayload = {
   semesters: number[];
   semester: number | null;
   as_of: string;
   session_period: { start: string; end: string } | null;
   results: AcademicResult[];
+  engagement?: StudyEngagement;
   summary: {
     closed: number;
     total: number;

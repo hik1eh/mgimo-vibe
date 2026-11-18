@@ -973,17 +973,6 @@
     transform: rotate(8deg);
   }
 }
-.service-type {
-  display: grid;
-  gap: 5px;
-  margin: 0 0 18px;
-  font-size: 14px;
-}
-.service-type span {
-  color: var(--muted);
-  font-size: 13px;
-}
-
 .notice-panel .section-heading {
   flex-wrap: wrap;
   align-items: center;

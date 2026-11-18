@@ -138,6 +138,7 @@ export function StudentProfile({
     ["Возраст", user.age],
     ["Логин", user.login],
     ["Факультет", user.faculty],
+    ["Направление", user.direction],
     ["Форма обучения", user.study_mode],
     ["№ студенческого", user.student_card_number],
   ] as const;

@@ -1,7 +1,8 @@
 import re
 from typing import Literal
 from uuid import UUID
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
+from .request_types import RequestKind
 
 
 class LoginIn(BaseModel):
@@ -30,14 +31,17 @@ class ContactsIn(BaseModel):
 
 
 class RequestIn(BaseModel):
+    kind: RequestKind = RequestKind.STUDY
     purpose: str = Field(min_length=3, max_length=500)
     idempotency_key: UUID
 
     @field_validator('purpose')
     @classmethod
-    def strip_purpose(cls, value):
+    def strip_purpose(cls, value, info: ValidationInfo):
         if len(value.strip()) < 3:
-            raise ValueError('Укажите место предъявления (от 3 символов).')
+            message = ('Укажите место предъявления' if info.data.get('kind') == RequestKind.STUDY
+                       else 'Укажите детали заявки')
+            raise ValueError(f'{message} (от 3 символов).')
         return value.strip()
 
 
@@ -57,3 +61,10 @@ class ReplyIn(BaseModel):
         if not value.strip():
             raise ValueError('Введите ответ.')
         return value.strip()
+
+
+class JournalIn(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    attendance: Literal['present', 'absent'] | None
+    checkpoint: Literal['completed', 'pending'] | None
+    version: int = Field(ge=0)

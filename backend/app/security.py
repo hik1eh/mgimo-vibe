@@ -43,6 +43,12 @@ def staff(user=Depends(current_user)):
     return user
 
 
+def teacher(user=Depends(current_user)):
+    if user.role != 'teacher' or user.teacher_id is None:
+        raise HTTPException(403, 'Действие доступно преподавателю.')
+    return user
+
+
 def require_origin(request: Request):
     if request.headers.get('origin') != settings.app_origin.rstrip('/'):
         raise HTTPException(403, 'Недопустимый источник запроса.')

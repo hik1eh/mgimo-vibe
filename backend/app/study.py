@@ -1,10 +1,10 @@
 from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.orm import Session, selectinload
 from .db import get_db
-from .models import AcademicResult, Group, Lesson, StudyScenario, User
+from .models import AcademicResult, Group, Lesson, LessonJournal, StudyScenario, User
 from .security import student, staff
 from .campus_map import campus_floors, route_segments
 
@@ -86,11 +86,32 @@ def result_data(row):
         credit_passed=row.credit_passed, passed=passed, label=label)
 
 
+def marked_lessons(column, user, *columns):
+    return (select(column, *columns).select_from(LessonJournal).join(Lesson)
+            .where(LessonJournal.student_id == user.id, Lesson.group_id == user.group_id,
+                   Lesson.status != 'cancelled', Lesson.semester.is_not(None),
+                   or_(LessonJournal.attendance.is_not(None), LessonJournal.checkpoint.is_not(None))))
+
+
+def engagement_data(db, user, semester):
+    counts = dict(
+        present=func.count().filter(LessonJournal.attendance == 'present'),
+        absent=func.count().filter(LessonJournal.attendance == 'absent'),
+        completed=func.count().filter(LessonJournal.checkpoint == 'completed'),
+        pending=func.count().filter(LessonJournal.checkpoint == 'pending'),
+    )
+    stmt = (marked_lessons(Lesson.subject, user, *(expr.label(key) for key, expr in counts.items()))
+            .where(Lesson.semester == semester).group_by(Lesson.subject).order_by(Lesson.subject))
+    subjects = [dict(row) for row in db.execute(stmt).mappings()]
+    return dict(**{key: sum(row[key] for row in subjects) for key in counts}, subjects=subjects)
+
+
 @router.get('/academic-results')
 def academic_results(semester: int | None = Query(default=None, ge=1, le=12),
                      user=Depends(student), db: Session = Depends(get_db)):
-    semesters = list(db.scalars(select(AcademicResult.semester).where(AcademicResult.student_id == user.id)
-                               .distinct().order_by(AcademicResult.semester.desc())))
+    result_semesters = select(AcademicResult.semester).where(AcademicResult.student_id == user.id)
+    semesters = list(db.scalars(result_semesters.union(marked_lessons(Lesson.semester, user))
+                               .order_by(AcademicResult.semester.desc())))
     selected = semester if semester is not None else (semesters[0] if semesters else None)
     rows = db.scalars(select(AcademicResult).where(AcademicResult.student_id == user.id,
         AcademicResult.semester == selected).order_by(AcademicResult.control_at, AcademicResult.id)).all() if selected else []
@@ -101,6 +122,7 @@ def academic_results(semester: int | None = Query(default=None, ge=1, le=12),
     control_days = [row.control_at.astimezone(MOSCOW).date() for row in rows]
     period = dict(start=min(control_days), end=max(control_days)) if control_days else None
     return dict(semesters=semesters, semester=selected, as_of=today, results=results, session_period=period,
+        engagement=engagement_data(db, user, selected),
         summary=dict(closed=sum(r['passed'] for r in results), total=len(results),
                      awaiting=sum(r['status'] == 'awaiting' for r in results),
                      next_credit=next((r for r in upcoming if r['kind'] == 'credit'), None),

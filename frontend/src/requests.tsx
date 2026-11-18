@@ -18,16 +18,25 @@ import {
   ApiError,
   date,
   statusLabels,
+  type RequestKind,
   type RequestRecord,
-  type Status,
+  type RequestType,
   type User,
 } from "./api";
 import type { Group } from "./campus-types";
 import { submissionKey } from "./ids";
 import { ErrorBox, useMediaQuery, useResource } from "./ui";
 
-function Badge({ status }: { status: Status }) {
-  return <span className={`badge ${status}`}>{statusLabels[status]}</span>;
+function completionLabel(kind: RequestKind) {
+  if (kind === "dean_message") return "Есть ответ";
+  if (kind === "academic_leave") return "Рассмотрена";
+  return statusLabels.ready;
+}
+
+function Badge({ record }: { record: RequestRecord }) {
+  return <span className={`badge ${record.status}`}>
+    {record.status === "ready" ? completionLabel(record.kind) : statusLabels[record.status]}
+  </span>;
 }
 
 const studentFilters = [
@@ -51,6 +60,7 @@ export function RequestWorkspace({ user }: { user: User }) {
   const groups = useResource<Group[]>(
     staff && listVisible ? "/staff/groups" : null,
   );
+  const types = useResource<RequestType[]>(staff && listVisible ? "/request-types" : null);
   const status = params.get("status") || "";
   const rows = resource.data?.filter(
     (row) =>
@@ -144,6 +154,13 @@ export function RequestWorkspace({ user }: { user: User }) {
               </select>
             </label>
             <label>
+              Тип заявки
+              <select aria-label="Тип заявки" value={params.get("kind") || ""} onChange={(event) => filter("kind", event.target.value)}>
+                <option value="">Все типы</option>
+                {types.data?.map((type) => <option key={type.kind} value={type.kind}>{type.label}</option>)}
+              </select>
+            </label>
+            <label>
               Номер заявки
               <input
                 type="search"
@@ -173,14 +190,23 @@ export function RequestWorkspace({ user }: { user: User }) {
                 </button>
               ))}
             </div>
-            <Link className="primary request-create" to="/requests/new">
-              Заказать справку <span aria-hidden="true">＋</span>
-            </Link>
+            <div className="request-entry-actions">
+              <Link className="primary request-create" to="/requests/new">
+                Заказать справку <span aria-hidden="true">＋</span>
+              </Link>
+              <Link className="secondary" to="/requests/new?kind=dean_message">
+                Написать в деканат
+              </Link>
+            </div>
           </>
         )}
-        <ErrorBox error={resource.error || groups.error} />
-        {resource.error && (
-          <button className="secondary" onClick={resource.reload}>
+        <ErrorBox error={resource.error || groups.error || types.error} />
+        {(resource.error || groups.error || types.error) && (
+          <button className="secondary" onClick={() => {
+            resource.reload();
+            if (groups.error) groups.reload();
+            if (types.error) types.reload();
+          }}>
             Повторить
           </button>
         )}
@@ -189,7 +215,7 @@ export function RequestWorkspace({ user }: { user: User }) {
         )}
         {rows?.length === 0 && (
           <p className="muted">
-            {status || params.get("q") || params.get("group_id")
+            {status || params.get("q") || params.get("group_id") || params.get("kind")
               ? "По этому фильтру заявок нет."
               : "Заявок пока нет."}
           </p>
@@ -220,6 +246,7 @@ export function RequestWorkspace({ user }: { user: User }) {
               </span>
               <span className="request-picker-label">
                 <strong>{staff ? row.student.full_name : row.type}</strong>
+                {staff && <span>{row.type}</span>}
                 <span>
                   {row.number}
                   {staff ? ` · ${row.student.group}` : ""}
@@ -229,7 +256,7 @@ export function RequestWorkspace({ user }: { user: User }) {
                   <br />
                   Срок {date(row.due_at)}
                 </small>
-                <Badge status={row.status} />
+                <Badge record={row} />
               </span>
               <ArrowUpRight
                 size={16}
@@ -255,33 +282,42 @@ export function RequestWorkspace({ user }: { user: User }) {
 }
 
 export function NewRequest({ user }: { user: User }) {
-  const storage = `request-draft-${user.id}`;
-  const [draft, setDraft] = useState<{ purpose: string; key: string }>(() => {
+  const [params] = useSearchParams();
+  const initialKind = params.get("kind") === "dean_message" ? "dean_message" : "study";
+  return <RequestForm key={initialKind} user={user} initialKind={initialKind} />;
+}
+
+function RequestForm({ user, initialKind }: { user: User; initialKind: RequestKind }) {
+  const storage = `request-draft-${user.id}${initialKind === "study" ? "" : "-message"}`;
+  const catalog = useResource<RequestType[]>("/request-types");
+  const [draft, setDraft] = useState<{ purpose: string; key: string; kind: RequestKind }>(() => {
     try {
       const saved = sessionStorage.getItem(storage);
-      if (saved) return JSON.parse(saved);
+      if (saved) return { kind: initialKind, ...JSON.parse(saved) };
     } catch {
       /* Fresh draft */
     }
-    return { purpose: "", key: submissionKey() };
+    return { purpose: "", key: submissionKey(), kind: initialKind };
   });
   const [error, setError] = useState(""),
     [purposeError, setPurposeError] = useState(""),
     [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
   const navigate = useNavigate();
+  const service = catalog.data?.find((item) => item.kind === draft.kind) ?? catalog.data?.[0];
   useEffect(() => {
     sessionStorage.setItem(storage, JSON.stringify(draft));
   }, [draft, storage]);
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (inFlight.current) return;
+    if (inFlight.current || !service) return;
     inFlight.current = true;
     setBusy(true);
     setError("");
     setPurposeError("");
     try {
       const req = await api<RequestRecord>("/requests", "POST", {
+        kind: service.kind,
         purpose: draft.purpose,
         idempotency_key: draft.key,
       });
@@ -303,12 +339,14 @@ export function NewRequest({ user }: { user: User }) {
       </Link>
       <div className="page-title">
         <span className="eyebrow">НОВАЯ ЗАЯВКА</span>
-        <h1>Справка об обучении</h1>
-        <p>Проверьте сведения и укажите, куда нужна справка.</p>
+        <h1>{service?.label ?? "Новая заявка"}</h1>
       </div>
-      <div className="two-columns">
+      <ErrorBox error={catalog.error} />
+      {catalog.error && <button className="secondary" onClick={catalog.reload}>Повторить</button>}
+      {!catalog.data && !catalog.error && <p role="status">Загружаем виды заявок…</p>}
+      {service && <div className="two-columns">
         <section className="panel">
-          <h2>Данные для справки</h2>
+          <h2>Данные заявки</h2>
           <dl>
             <dt>Студент</dt>
             <dd>{user.full_name}</dd>
@@ -318,18 +356,24 @@ export function NewRequest({ user }: { user: User }) {
             <dd>{user.faculty}</dd>
           </dl>
           <form onSubmit={submit}>
-            <p className="service-type">
-              <span>Тип заявки</span>
-              <strong>Справка об обучении</strong>
-            </p>
+            <label className="service-select">
+              Тип заявки
+              <select aria-label="Тип заявки" value={service.kind} disabled={busy} onChange={(event) => {
+                setDraft({ ...draft, kind: event.target.value as RequestKind });
+                setPurposeError("");
+              }}>
+                {catalog.data?.map((item) => <option key={item.kind} value={item.kind}>{item.label}</option>)}
+              </select>
+            </label>
             <label>
-              Место предъявления
+              {service.purpose_label}
               <textarea
-                aria-label="Место предъявления"
+                aria-label={service.purpose_label}
                 required
+                disabled={busy}
                 minLength={3}
                 maxLength={500}
-                placeholder="Например, по месту требования"
+                placeholder={service.placeholder}
                 aria-invalid={Boolean(purposeError)}
                 aria-describedby={purposeError ? "purpose-error" : undefined}
                 value={draft.purpose}
@@ -360,13 +404,14 @@ export function NewRequest({ user }: { user: User }) {
             карточке.
           </p>
           <hr />
-          <h3>Электронный PDF</h3>
+          <h3>{service.delivery}</h3>
           <p>
-            Когда справка будет готова, появится уведомление и кнопка
-            скачивания.
+            {service.has_document
+              ? "Когда документ будет готов, появятся уведомление и кнопка скачивания."
+              : "Когда деканат рассмотрит заявку, появится уведомление со ссылкой на ответ."}
           </p>
         </aside>
-      </div>
+      </div>}
     </>
   );
 }
@@ -481,23 +526,23 @@ function RequestDetail({
               <Heading>{req.type}</Heading>
               <p>Подана {date(req.created_at)}</p>
             </div>
-            <Badge status={req.status} />
+            <Badge record={req} />
           </div>
           {location.state?.created && (
             <p className="success" role="status">
               Заявка {req.number} принята.
             </p>
           )}
-          <RequestProgress status={req.status} />
+          <RequestProgress record={req} />
           <div className="request-detail-grid">
             <aside>
               <section
-                className={`panel action-panel ${!staff && req.status === "ready" ? "ready-document" : ""}`}
+                className={`panel action-panel ${!staff && req.status === "ready" && req.has_document ? "ready-document" : ""}`}
               >
                 <span className="eyebrow">СЛЕДУЮЩИЙ ШАГ</span>
                 <h2>
                   {req.status === "ready"
-                    ? "Документ готов"
+                    ? req.has_document ? "Документ готов" : completionLabel(req.kind)
                     : req.status === "needs_info"
                       ? staff
                         ? "Ждём ответ студента"
@@ -508,7 +553,7 @@ function RequestDetail({
                           : "Заявка принята"
                         : staff
                           ? "Продолжите обработку"
-                          : "Справка в работе"}
+                          : "Заявка в работе"}
                 </h2>
                 <ErrorBox error={actionError} />
                 {message && (
@@ -531,13 +576,15 @@ function RequestDetail({
                     </button>
                   </>
                 )}
-                {!staff && req.status === "ready" && !req.document_url && (
+                {!staff && req.status === "ready" && req.has_document && !req.document_url && (
                   <p>PDF ещё формируется. Карточка обновится автоматически.</p>
+                )}
+                {!staff && req.status === "ready" && !req.has_document && (
+                  <a href="#request-history">Читать ответ деканата ↓</a>
                 )}
                 {!staff && ["accepted", "in_progress"].includes(req.status) && (
                   <p>
-                    Сотрудник деканата готовит справку. Если понадобятся
-                    сведения, вопрос появится здесь.
+                    Сотрудник рассмотрит заявку. Если понадобятся сведения, вопрос появится здесь.
                   </p>
                 )}
                 {staff && req.status === "accepted" && (
@@ -554,7 +601,9 @@ function RequestDetail({
                 )}
                 {staff && req.status === "ready" && (
                   <p>
-                    Студенту отправлено уведомление. Справка доступна в его кабинете.
+                    Студенту отправлено уведомление. {req.has_document
+                      ? "Документ доступен в его кабинете."
+                      : "Ответ сохранён в переписке."}
                   </p>
                 )}
                 {((staff && req.status === "in_progress") ||
@@ -566,16 +615,15 @@ function RequestDetail({
                     }}
                   >
                     <label>
-                      {staff ? "Вопрос студенту" : "Ваш ответ"}
+                      {staff ? (req.has_document ? "Вопрос студенту" : "Ответ или уточнение") : "Ваш ответ"}
                       <textarea
-                        aria-label={staff ? "Вопрос студенту" : "Ваш ответ"}
                         required
                         maxLength={2000}
                         value={text}
                         onChange={(e) => setText(e.target.value)}
                         placeholder={
                           staff
-                            ? "Какие сведения нужно уточнить?"
+                            ? (req.has_document ? "Какие сведения нужно уточнить?" : "Напишите ответ или задайте вопрос")
                             : "Уточните сведения для сотрудника"
                         }
                       />
@@ -595,10 +643,10 @@ function RequestDetail({
                 {staff && req.status === "in_progress" && (
                   <button
                     className="primary complete"
-                    disabled={busy}
+                    disabled={busy || (!req.has_document && !text.trim())}
                     onClick={() => act("complete")}
                   >
-                    Отметить готовой
+                    {req.has_document ? "Отметить готовой" : req.kind === "dean_message" ? "Отправить ответ" : "Сохранить решение"}
                   </button>
                 )}
               </section>
@@ -618,7 +666,7 @@ function RequestDetail({
                   <dd>
                     {req.student.faculty} · {req.student.group}
                   </dd>
-                  <dt>Место предъявления</dt>
+                  <dt>{req.purpose_label}</dt>
                   <dd>{req.purpose}</dd>
                   <dt>Способ получения</dt>
                   <dd>{req.delivery}</dd>
@@ -631,7 +679,7 @@ function RequestDetail({
                   </dd>
                 </dl>
               </section>
-              <section className="panel history">
+              <section className="panel history" id="request-history">
                 <h2>История и переписка</h2>
                 <ol>
                   {req.events?.map((event) => (
@@ -653,14 +701,15 @@ function RequestDetail({
   );
 }
 
-function RequestProgress({ status }: { status: Status }) {
+function RequestProgress({ record }: { record: RequestRecord }) {
+  const { status } = record;
   const current = status === "ready" ? 2 : status === "accepted" ? 0 : 1;
   return (
     <ol className="request-progress" aria-label="Этапы заявки">
       {[
         "Принята",
         status === "needs_info" ? "Нужно уточнение" : "В работе",
-        "Готова",
+        completionLabel(record.kind),
       ].map((label, index) => (
         <li
           key={index}

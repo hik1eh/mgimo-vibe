@@ -1,7 +1,7 @@
 export type User = {
   id: number;
   login: string;
-  role: "student" | "staff";
+  role: "student" | "staff" | "teacher";
   full_name: string;
   faculty: string;
   group: string | null;
@@ -16,18 +16,36 @@ export type User = {
   student_card_number?: string | null;
 };
 export type Status = "accepted" | "in_progress" | "needs_info" | "ready";
+export type RequestKind =
+  | "study"
+  | "practice"
+  | "military"
+  | "retake"
+  | "academic_leave"
+  | "dean_message";
+export type RequestType = {
+  kind: RequestKind;
+  label: string;
+  purpose_label: string;
+  placeholder: string;
+  delivery: string;
+  has_document: boolean;
+};
 export type RequestRecord = {
   id: number;
   number: string;
   status: Status;
   version: number;
+  kind: RequestKind;
   type: string;
   purpose: string;
+  purpose_label: string;
   created_at: string;
   due_at: string;
   delivery: string;
+  has_document: boolean;
   student: User;
-  document_url?: string;
+  document_url?: string | null;
   events?: {
     id: number;
     kind: string;

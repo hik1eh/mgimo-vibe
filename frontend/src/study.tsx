@@ -13,6 +13,7 @@ import "./study.css";
 import { StudentSchedule } from "./schedule-view";
 import { RouteLink } from "./lesson-route";
 import { SemesterStories } from "./semester-stories";
+import { EngagementPanel } from "./study-engagement";
 import { rememberMove } from "./lesson-attention";
 
 function ResourceError({
@@ -412,6 +413,7 @@ export function ResultsPage() {
               </>
             )}
           </section>
+          {data.engagement && <EngagementPanel data={data.engagement} />}
         </>
       )}
     </>

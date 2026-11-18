@@ -40,6 +40,9 @@ import { LessonRoutePage } from "./lesson-route";
 import { RequestWorkspace, NewRequest } from "./requests";
 import { Notifications } from "./notifications";
 import { StaffResultsPage } from "./staff-results";
+import { AdditionalMenu, TeacherDirectory } from "./teachers";
+import { TeachingJournal, TeachingPage } from "./teaching";
+import "./additional.css";
 
 function RouteFocus() {
   const { pathname } = useLocation();
@@ -50,7 +53,7 @@ function RouteFocus() {
   return null;
 }
 
-function StaffProfile({ user }: { user: User }) {
+function EmployeeProfile({ user }: { user: User }) {
   return (
     <>
       <section className="panel profile">
@@ -62,7 +65,7 @@ function StaffProfile({ user }: { user: User }) {
         </div>
         <div>
           <h2>{user.full_name}</h2>
-          <p className="muted">Сотрудник деканата</p>
+          <p className="muted">{user.role === "teacher" ? "Преподаватель" : "Сотрудник деканата"}</p>
           <dl>
             <dt>Факультет</dt>
             <dd>{user.faculty}</dd>
@@ -88,7 +91,10 @@ function Cabinet({
   const [error, setError] = useState("");
   const [input, setInput] = useState("pointer");
   const staff = user.role === "staff";
-  const notices = useResource<Notice[]>(staff ? null : "/notifications", true);
+  const teacher = user.role === "teacher";
+  const student = user.role === "student";
+  const dashboard = staff ? "/requests" : teacher ? "/teaching" : "/today";
+  const notices = useResource<Notice[]>(student ? "/notifications" : null, true);
   const unread = notices.data?.filter((item) => !item.read).length ?? 0;
   async function logout() {
     try {
@@ -103,7 +109,7 @@ function Cabinet({
       className="cabinet-app"
       data-role={user.role}
       data-student-screen={
-        !staff && (pathname === "/today" || pathname === "/schedule")
+        student && (pathname === "/today" || pathname === "/schedule")
           ? pathname.slice(1)
           : undefined
       }
@@ -115,11 +121,11 @@ function Cabinet({
         К содержимому
       </a>
       <header
-        className={`cabinet-header ${staff ? "staff-header" : "student-header"}`}
+        className={`cabinet-header ${student ? "student-header" : "staff-header"}`}
       >
         <Link
           className="brand"
-          to={staff ? "/requests" : "/today"}
+          to={dashboard}
           aria-label="Цифровой деканат. Университет Северного кампуса"
         >
           <span className="brand-mark">СК</span>
@@ -135,17 +141,17 @@ function Cabinet({
           </span>
         </Link>
         <nav
-          className={staff ? "staff-nav" : "student-nav"}
+          className={staff ? "staff-nav" : teacher ? "teaching-nav" : "student-nav"}
           aria-label="Основная навигация"
         >
-          {!staff && (
+          {student && (
             <>
               <NavLink to="/today">Сегодня</NavLink>
               <NavLink to="/schedule">Расписание</NavLink>
               <NavLink to="/academic-results">Оценки</NavLink>
             </>
           )}
-          <NavLink to="/requests">Заявки</NavLink>
+          {!teacher && <NavLink to="/requests">Заявки</NavLink>}
           {staff && (
             <>
               <NavLink to="/staff/announcements">Объявления</NavLink>
@@ -154,15 +160,24 @@ function Cabinet({
               <NavLink to="/profile">Профиль</NavLink>
             </>
           )}
+          {teacher && (
+            <>
+              <NavLink to="/teaching">Журнал</NavLink>
+              <NavLink to="/profile">Профиль</NavLink>
+            </>
+          )}
         </nav>
         <div className="header-user">
-          {staff ? (
+          {student ? (
+            <>
+              <AdditionalMenu />
+              <StudentAccount unread={unread} />
+            </>
+          ) : (
             <span>
               {user.full_name}
-              <small>Сотрудник</small>
+              <small>{teacher ? "Преподаватель" : "Сотрудник"}</small>
             </span>
-          ) : (
-            <StudentAccount unread={unread} />
           )}
           <button
             className="logout"
@@ -177,14 +192,14 @@ function Cabinet({
       <main id="main" className="cabinet-main" tabIndex={-1}>
         <RouteFocus />
         <SectionBanner
-          staff={staff}
+          role={user.role}
           faculty={user.faculty}
           keyboard={input === "keyboard"}
         />
         <div className="cabinet-content">
           <ErrorBox error={error} />
           <Routes>
-            {!staff && (
+            {student && (
               <>
                 <Route path="/today" element={<TodayPage key={user.id} user={user} />} />
                 <Route path="/announcements" element={<AnnouncementsPage />} />
@@ -202,6 +217,7 @@ function Cabinet({
                   element={<LessonRoutePage />}
                 />
                 <Route path="/academic-results" element={<ResultsPage />} />
+                <Route path="/teachers" element={<TeacherDirectory />} />
               </>
             )}
             {staff && (
@@ -235,35 +251,32 @@ function Cabinet({
                 />
               </>
             )}
+            {teacher && (
+              <>
+                <Route path="/teaching" element={<TeachingPage user={user} />} />
+                <Route path="/teaching/lessons/:id" element={<TeachingJournal />} />
+              </>
+            )}
             <Route
               path="/profile"
               element={
-                staff ? (
-                  <StaffProfile user={user} />
-                ) : (
+                student ? (
                   <StudentProfile user={user} onUpdate={onUserUpdate} />
-                )
-              }
-            />
-            <Route
-              path="/requests"
-              element={<RequestWorkspace user={user} />}
-            />
-            <Route
-              path="/requests/new"
-              element={
-                staff ? (
-                  <Navigate to="/requests" replace />
                 ) : (
-                  <NewRequest user={user} />
+                  <EmployeeProfile user={user} />
                 )
               }
             />
-            <Route
-              path="/requests/:id"
-              element={<RequestWorkspace user={user} />}
-            />
-            {!staff && (
+            {!teacher && (
+              <>
+                <Route path="/requests" element={<RequestWorkspace user={user} />} />
+                <Route path="/requests/:id" element={<RequestWorkspace user={user} />} />
+                <Route path="/requests/new" element={
+                  staff ? <Navigate to="/requests" replace /> : <NewRequest user={user} />
+                } />
+              </>
+            )}
+            {student && (
               <Route
                 path="/notifications"
                 element={<Notifications resource={notices} />}
@@ -271,7 +284,7 @@ function Cabinet({
             )}
             <Route
               path="*"
-              element={<Navigate to={staff ? "/requests" : "/today"} replace />}
+              element={<Navigate to={dashboard} replace />}
             />
           </Routes>
         </div>
@@ -282,6 +295,7 @@ function Cabinet({
           Университет, учебные даты, профили и документы вымышлены.
           Справки демонстрационные и не имеют юридической силы.
         </span>
+        <a href="/assets/third-party-notices.txt">Лицензии библиотек</a>
       </footer>
     </div>
   );
