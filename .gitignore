@@ -12,3 +12,5 @@ frontend/dist/
 *.tsbuildinfo
 artifacts/
 *.db
+templates/
+

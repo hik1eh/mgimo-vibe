@@ -1,0 +1,112 @@
+Обнови окно аутентификации и сделай под нашу цветовую палитру. За основу берем референс sign-up.jpeg, но переделываем его. Я хочу расположение примерно как на этом иозображении, но соотношение 65\35, где 35% - окно входа. Левые 65%: сцена. В ней слева 3D-надпись, справа карусель. Правые 35%: панель входа
+
+Используй анимацию и референс из этого промпта для окна входа:
+# Reference: "Sign Up by Tushti Sachdeva" (UI interaction)
+
+Recreate this UI interaction (Animation) as a component in my project: same states, timing and easing, built with my project's own components and tokens.
+
+- Reference: Sign Up by Tushti Sachdeva — a UI interaction from Craftwork Inspiration
+- Type: Animation
+- Original source (Tushti Sachdeva): https://x.com/tushtisachdeva/status/2107853009346760984
+- Reference video (1080×1082): https://curated-video.b-cdn.net/objects/19fc2aa50bb8e39be346bf65b80a9ff9b6232054be867a10fc9f02ff6aa7c35b/cd1ec790e006c720865f8a37bceaabde6cba507598301e213fe5e755756efff4/retina-v1/detail-video-1080.mp4?token=qoEZSrg23-hhSUkxsCGiv3OdIoFVbri2k2A0ySnmDJc&expires=2109994680
+- Craftwork page: https://craftwork.design/curated/interface/sign-up-by-tushti-sachdeva-ffb6be
+- Tags: Animation, Forms
+
+## Study the reference first
+1. Download the reference video into a temporary folder (not into the project) and actually watch it. If you can't play video, extract frames with ffmpeg — `ffmpeg -i reference.mp4 -vf fps=30 frames/%04d.png` — and read them in order: count frames between states to get durations (30 frames = 1 s), and compare positions and opacity frame to frame to see the easing curve.
+2. Open the original (https://x.com/tushtisachdeva/status/2107853009346760984). If it is a live product or site, find this interaction there and inspect it with the browser tools: DOM, CSS transitions/keyframes, animation library calls. If it is a design showcase (Dribbble, X, a portfolio), the video is the spec.
+3. Write the interaction spec before coding: states (idle, hover, pressed, active, loading, done…), what triggers each transition, which properties change, durations, delays, easing or spring values, and stagger between parts.
+
+## Build it on this project's design system
+1. Explore this project before writing code. Find its design system: tokens (CSS variables, Tailwind theme/config, theme files), UI components (Button, Card, Badge, Input, Tabs, Dialog…), typography styles, spacing scale, icon set, image component and the animation library already in use. Write down what you'll reuse.
+2. Build with those components and tokens. Don't hardcode colors, font sizes, radii or shadows; if the reference needs a value the system doesn't have, add it as a token next to the existing ones and tell me.
+3. Follow the project's conventions: framework, folder structure, file naming, styling approach, i18n, data loading. Don't add a dependency when the project already has one for the job (e.g. use its existing animation library).
+4. Take the idea, not the brand: don't copy logos, trademarks, product names, copy text, photos or illustrations from the original. Use my project's content, or placeholders of the same size and mood that I can replace.
+5. Motion: animate transform, opacity and filter only; keep durations and easings as shared values; trigger entrances once; respect `prefers-reduced-motion`; the UI must work without JavaScript animation.
+6. Responsive down to 360 px with no horizontal scroll, visible `:focus-visible` states, touch targets of at least 44 px, semantic markup and alt text.
+
+## The code
+- One reusable component with its states as props, keyboard-accessible, with correct ARIA for its role.
+- Match the timing and easing from your spec; put the numbers in named constants.
+- Add a small demo or story if the project has Storybook or a playground page.
+
+## Settle before you start (ask me if unclear)
+- Where will this component be used, and what does it trigger?
+
+## When you're done
+Report what you built and where, which existing components and tokens you reused, which tokens you added, the motion you implemented (with timings), placeholders I need to replace, and any differences from the reference you couldn't close.
+
+Затем слева, где должна быть картинка, левую часть сделай анимацией этой головы из букв - "University North Campus", используй:
+# Reference: "Type Face" (UI interaction)
+
+Recreate this UI interaction (3D) as a component in my project: same states, timing and easing, built with my project's own components and tokens.
+
+- Reference: Type Face — a UI interaction from Craftwork Inspiration
+- Type: 3D
+- Original source (Stephen Kelman): https://x.com/stephenkelman/status/2093335231604367454
+- Reference video (1080×1080): https://curated-video.b-cdn.net/objects/6e350e325132e92dbbdc4c61cd204c2f7e47177f9903c94ebacb4be92cb71c66/ae474de38a9f90583f995a1270c88d5920495cc0bf3dfc4b4fac84a8d11e3a43/retina-v1/detail-video-1080.mp4?token=Y9RejvwvPb-BemtbJ69h5tkoMkpi9WcSTqNomGSfoOA&expires=2109998413
+- Craftwork page: https://craftwork.design/curated/interface/type-face-e8890e
+- Tags: 3D
+- Notes: Type Face
+
+## Study the reference first
+1. Download the reference video into a temporary folder (not into the project) and actually watch it. If you can't play video, extract frames with ffmpeg — `ffmpeg -i reference.mp4 -vf fps=30 frames/%04d.png` — and read them in order: count frames between states to get durations (30 frames = 1 s), and compare positions and opacity frame to frame to see the easing curve.
+2. Open the original (https://x.com/stephenkelman/status/2093335231604367454). If it is a live product or site, find this interaction there and inspect it with the browser tools: DOM, CSS transitions/keyframes, animation library calls. If it is a design showcase (Dribbble, X, a portfolio), the video is the spec.
+3. Write the interaction spec before coding: states (idle, hover, pressed, active, loading, done…), what triggers each transition, which properties change, durations, delays, easing or spring values, and stagger between parts.
+
+## Build it on this project's design system
+1. Explore this project before writing code. Find its design system: tokens (CSS variables, Tailwind theme/config, theme files), UI components (Button, Card, Badge, Input, Tabs, Dialog…), typography styles, spacing scale, icon set, image component and the animation library already in use. Write down what you'll reuse.
+2. Build with those components and tokens. Don't hardcode colors, font sizes, radii or shadows; if the reference needs a value the system doesn't have, add it as a token next to the existing ones and tell me.
+3. Follow the project's conventions: framework, folder structure, file naming, styling approach, i18n, data loading. Don't add a dependency when the project already has one for the job (e.g. use its existing animation library).
+4. Take the idea, not the brand: don't copy logos, trademarks, product names, copy text, photos or illustrations from the original. Use my project's content, or placeholders of the same size and mood that I can replace.
+5. Motion: animate transform, opacity and filter only; keep durations and easings as shared values; trigger entrances once; respect `prefers-reduced-motion`; the UI must work without JavaScript animation.
+6. Responsive down to 360 px with no horizontal scroll, visible `:focus-visible` states, touch targets of at least 44 px, semantic markup and alt text.
+
+## The code
+- One reusable component with its states as props, keyboard-accessible, with correct ARIA for its role.
+- Match the timing and easing from your spec; put the numbers in named constants.
+- Add a small demo or story if the project has Storybook or a playground page.
+
+## Settle before you start (ask me if unclear)
+- Where will this component be used, and what does it trigger?
+
+## When you're done
+Report what you built and where, which existing components and tokens you reused, which tokens you added, the motion you implemented (with timings), placeholders I need to replace, and any differences from the reference you couldn't close.
+
+А справа от этой головы, надо сделать карусель фотографий вуза по данному заданию:
+# Reference: "Carousel by ✦ Fred" (UI interaction)
+
+Recreate this UI interaction (3D) as a component in my project: same states, timing and easing, built with my project's own components and tokens.
+
+- Reference: Carousel by ✦ Fred — a UI interaction from Craftwork Inspiration
+- Type: 3D
+- Original source (✦ Fred): https://x.com/beastydesign/status/2099879923989065756
+- Reference video (1080×2342): https://curated-video.b-cdn.net/objects/244012ba30298b1e73f9dd1307379871fae78ea4bb6d9abc173c1b033832004a/5aa2d1b12391c5d32738bf31a7ccec33977cb89a4dc401f90bb10491127585ae/retina-v1/detail-video-1080.mp4?token=OfbVm2L-5IED4kMhhE_fUbgLbAa7XdVvvGsImhuOPNM&expires=2109998413
+- Craftwork page: https://craftwork.design/curated/interface/carousel-by-fred-02afa0
+- Tags: 3D, Animation, Cards
+
+## Study the reference first
+1. Download the reference video into a temporary folder (not into the project) and actually watch it. If you can't play video, extract frames with ffmpeg — `ffmpeg -i reference.mp4 -vf fps=30 frames/%04d.png` — and read them in order: count frames between states to get durations (30 frames = 1 s), and compare positions and opacity frame to frame to see the easing curve.
+2. Open the original (https://x.com/beastydesign/status/2099879923989065756). If it is a live product or site, find this interaction there and inspect it with the browser tools: DOM, CSS transitions/keyframes, animation library calls. If it is a design showcase (Dribbble, X, a portfolio), the video is the spec.
+3. Write the interaction spec before coding: states (idle, hover, pressed, active, loading, done…), what triggers each transition, which properties change, durations, delays, easing or spring values, and stagger between parts.
+
+## Build it on this project's design system
+1. Explore this project before writing code. Find its design system: tokens (CSS variables, Tailwind theme/config, theme files), UI components (Button, Card, Badge, Input, Tabs, Dialog…), typography styles, spacing scale, icon set, image component and the animation library already in use. Write down what you'll reuse.
+2. Build with those components and tokens. Don't hardcode colors, font sizes, radii or shadows; if the reference needs a value the system doesn't have, add it as a token next to the existing ones and tell me.
+3. Follow the project's conventions: framework, folder structure, file naming, styling approach, i18n, data loading. Don't add a dependency when the project already has one for the job (e.g. use its existing animation library).
+4. Take the idea, not the brand: don't copy logos, trademarks, product names, copy text, photos or illustrations from the original. Use my project's content, or placeholders of the same size and mood that I can replace.
+5. Motion: animate transform, opacity and filter only; keep durations and easings as shared values; trigger entrances once; respect `prefers-reduced-motion`; the UI must work without JavaScript animation.
+6. Responsive down to 360 px with no horizontal scroll, visible `:focus-visible` states, touch targets of at least 44 px, semantic markup and alt text.
+
+## The code
+- One reusable component with its states as props, keyboard-accessible, with correct ARIA for its role.
+- Match the timing and easing from your spec; put the numbers in named constants.
+- Add a small demo or story if the project has Storybook or a playground page.
+
+## Settle before you start (ask me if unclear)
+- Where will this component be used, and what does it trigger?
+
+## When you're done
+Report what you built and where, which existing components and tokens you reused, which tokens you added, the motion you implemented (with timings), placeholders I need to replace, and any differences from the reference you couldn't close.
+
+Делай все в одной цветовой палитре, не надо много разных цветов на каждый элемент. Для мобильной версии не делай все анимации, оставь только правую часть, то есть окно авторизации. 
